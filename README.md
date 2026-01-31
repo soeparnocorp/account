@@ -1,4 +1,4 @@
-# READTalk Edge Chat
+# Edge Chat Demo
 
 This is a demo app written on [Cloudflare Workers](https://workers.cloudflare.com/) utilizing [Durable Objects](https://blog.cloudflare.com/introducing-workers-durable-objects) to implement real-time chat with stored history. This app runs 100% on Cloudflare's edge.
 
