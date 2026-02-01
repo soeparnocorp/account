@@ -1,0 +1,38 @@
+name = "readtalk"
+compatibility_date = "2024-01-01"
+
+main = "src/chat.mjs"
+
+# Durable Object bindings
+[durable_objects]
+bindings = [
+  { name = "rooms", class_name = "ChatRoom" },
+  { name = "limiters", class_name = "RateLimiter" }
+]
+
+# Rules untuk HTML
+[[rules]]
+type = "Data"
+globs = ["**/*.html"]
+fallthrough = false
+
+# Migrations DO
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatRoom", "RateLimiter"]
+
+# Observability aktif
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
