@@ -1,6 +1,5 @@
 name = "readtalk"
 compatibility_date = "2024-01-01"
-
 main = "src/chat.mjs"
 
 # Durable Object bindings
@@ -9,6 +8,17 @@ bindings = [
   { name = "rooms", class_name = "ChatRoom" },
   { name = "limiters", class_name = "RateLimiter" }
 ]
+
+# KV Namespace binding
+kv_namespaces = [
+  { binding = "READTALK_KV", id = "ff653b9c-4e2c-479d-8aa4-497da62de3c5" }
+]
+
+# D1 Database binding
+[[d1_databases]]
+binding = "READTALK_DB"
+database_name = "readtalk_db"
+database_id = "ff653b9c-4e2c-479d-8aa4-497da62de3c5"
 
 # Rules untuk HTML
 [[rules]]
@@ -21,7 +31,7 @@ fallthrough = false
 tag = "v1"
 new_sqlite_classes = ["ChatRoom", "RateLimiter"]
 
-# Observability aktif
+# Observability
 [observability]
 enabled = true
 head_sampling_rate = 1
