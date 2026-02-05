@@ -178,14 +178,14 @@ p:last-of-type {
   <body>
     <form id="name-form" action="/fake-form-action">
       <input id="name-input" placeholder="your name">
-      <p>This chat runs entirely on the edge, powered by<br>
+      <p>This chat runs entirely on the edge<br>
         <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank">Durable Objects</a></p>
     </form>
     <form id="room-form" action="/fake-form-action">
-      <p>Enter a public room:</p>
+      <p>Public Room:</p>
       <input id="room-name" placeholder="room name"><button id="go-public">Go &raquo;</button>
       <p>OR</p>
-      <button id="go-private">Create a Private Room &raquo;</button>
+      <button id="go-private">Private Room &raquo;</button>
     </form>
     <form id="chatroom" action="/fake-form-action">
       <div id="chatlog">
@@ -202,16 +202,16 @@ p:last-of-type {
 <script type="text/javascript">
 let currentWebSocket = null;
 
-let nameForm = document.querySelector("#name-form");
-let nameInput = document.querySelector("#name-input");
-let roomForm = document.querySelector("#room-form");
-let roomNameInput = document.querySelector("#room-name");
-let goPublicButton = document.querySelector("#go-public");
-let goPrivateButton = document.querySelector("#go-private");
-let chatroom = document.querySelector("#chatroom");
-let chatlog = document.querySelector("#chatlog");
-let chatInput = document.querySelector("#chat-input");
-let roster = document.querySelector("#roster");
+let nameForm = document.querySelector("@name-form");
+let nameInput = document.querySelector("@name-input");
+let roomForm = document.querySelector("@room-form");
+let roomNameInput = document.querySelector("@room-name");
+let goPublicButton = document.querySelector("@go-public");
+let goPrivateButton = document.querySelector("@go-private");
+let chatroom = document.querySelector("@chatroom");
+let chatlog = document.querySelector("@chatlog");
+let chatInput = document.querySelector("@chat-input");
+let roster = document.querySelector("@roster");
 
 // Is the chatlog scrolled to the bottom?
 let isAtBottom = true;
@@ -303,7 +303,7 @@ function startChat() {
     return;
   }
 
-  document.location.hash = "#" + roomname;
+  document.location.hash = "@" + roomname;
 
   chatInput.addEventListener("keydown", event => {
     if (event.keyCode == 38) {
@@ -435,7 +435,7 @@ function join() {
               "* This is a private room. You can invite someone to the room by sending them the URL.");
         } else {
           addChatMessage(null,
-              "* Welcome to #" + roomname + ". Say hi!");
+              "* Welcome to @" + roomname + ". Say hi!");
         }
       }
     } else {
