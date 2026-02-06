@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edge Chat Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: #0b141a;
+      color: #e9edef;
+      display: flex;
+    }
+
+    /* ====== SIDEBAR ====== */
+    #sidebar {
+      width: 320px;
+      background: #111b21;
+      border-right: 1px solid #2a3942;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #sidebar header {
+      padding: 16px;
+      font-weight: bold;
+      border-bottom: 1px solid #2a3942;
+    }
+
+    #room-form {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-bottom: 1px solid #2a3942;
+    }
+
+    #room-form input {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #202c33;
+      color: #e9edef;
+    }
+
+    #room-form button {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #00a884;
+      color: black;
+      font-weight: bold;
+    }
+
+    #roster {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    #roster div {
+      padding: 6px 0;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    /* ====== CHAT AREA ====== */
+    #chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0b141a;
+    }
+
+    #chat-header {
+      padding: 16px;
+      border-bottom: 1px solid #2a3942;
+      background: #202c33;
+      font-weight: bold;
+    }
+
+    #chatlog {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .message {
+      margin-bottom: 8px;
+      max-width: 70%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #202c33;
+    }
+
+    .message.self {
+      margin-left: auto;
+      background: #005c4b;
+    }
+
+    #chat-input {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid #2a3942;
+      background: #202c33;
+    }
+
+    #chat-input input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #111b21;
+      color: #e9edef;
+    }
+
+    #chat-input button {
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #00a884;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ===== SIDEBAR ===== -->
+  <div id="sidebar">
+    <header>Edge Chat</header>
+
+    <form id="room-form">
+      <input id="name" placeholder="Your name" autocomplete="off" />
+      <input id="room" placeholder="Room name" autocomplete="off" />
+      <button type="submit">Join / Create</button>
+    </form>
+
+    <div id="roster"></div>
+  </div>
+
+  <!-- ===== CHAT ===== -->
+  <div id="chat">
+    <div id="chat-header">Room</div>
+
+    <div id="chatlog"></div>
+
+    <form id="chat-input">
+      <input id="message" placeholder="Type a message…" autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <!-- ===== LOGIC (UNCHANGED CONTRACT) ===== -->
+  <script>
+    let ws;
+    let myName;
+    let roomName;
+
+    const roster = document.getElementById("roster");
+    const chatlog = document.getElementById("chatlog");
+
+    function addMessage(text, self = false) {
+      const div = document.createElement("div");
+      div.className = "message" + (self ? " self" : "");
+      div.textContent = text;
+      chatlog.appendChild(div);
+      chatlog.scrollTop = chatlog.scrollHeight;
+    }
+
+    function connect() {
+      ws = new WebSocket(
+        (location.protocol === "https:" ? "wss://" : "ws://") +
+        location.host +
+        "/api/room/" +
+        encodeURIComponent(roomName) +
+        "/websocket"
+      );
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ name: myName }));
+      };
+
+      ws.onmessage = event => {
+        const data = JSON.parse(event.data);
+
+        if (data.joined) {
+          const div = document.createElement("div");
+          div.textContent = data.joined;
+          roster.appendChild(div);
+        } else if (data.quit) {
+          [...roster.children].forEach(n => {
+            if (n.textContent === data.quit) n.remove();
+          });
+        } else if (data.message) {
+          addMessage(data.name + ": " + data.message, data.name === myName);
+        }
+      };
+    }
+
+    document.getElementById("room-form").onsubmit = e => {
+      e.preventDefault();
+      myName = document.getElementById("name").value.trim();
+      roomName = document.getElementById("room").value.trim();
+      if (!myName || !roomName) return;
+      roster.innerHTML = "";
+      chatlog.innerHTML = "";
+      document.getElementById("chat-header").textContent = roomName;
+      connect();
+    };
+
+    document.getElementById("chat-input").onsubmit = e => {
+      e.preventDefault();
+      const input = document.getElementById("message");
+      if (!input.value) return;
+      ws.send(JSON.stringify({ message: input.value }));
+      input.value = "";
+    };
+  </script>
+</body>
+</html>
