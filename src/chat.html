@@ -19,6 +19,9 @@
 }
 body {
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 #chatlog {
@@ -30,6 +33,7 @@ body {
   overflow-y: auto;
   padding: 8px;
   overflow-wrap: break-word;
+  -webkit-overflow-scrolling: touch;
 }
 #chatlog span.username {
   font-weight: bold;
@@ -59,35 +63,74 @@ p:last-of-type {
   width: 200px;
   border-left: none;
   border-right: 1px solid #ddd; /* 🟢 GARIS DI KANAN ROSTER */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 ::-webkit-scrollbar {
   display: none;
 }
 
+/* ============================================ */
+/* 🟢 MOBILE: OPTIMASI KEYBOARD & RESPONSIF */
+/* ============================================ */
 @media(max-width:600px) {
-  #roster { display: none; }
-  #chatlog { left: 0; right: 0; } /* 🟢 SESUAIKAN */
+  #roster { 
+    display: none; 
+  }
+  
+  #chatlog { 
+    left: 0; 
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 32px); /* 🟢 SAFE AREA UNTUK NOTCH */
+  }
+  
+  body {
+    height: -webkit-fill-available; /* 🟢 FIX IOS HEIGHT */
+  }
 }
 
 #chat-input {
   position: fixed;
-  width: 100%;
+  width: calc(100% - 200px); /* 🟢 SESUAIKAN DENGAN ROSTER */
   height: 32px;
   bottom: 0;
-  left: 0;
+  left: 200px; /* 🟢 MULAI DARI ROSTER */
+  right: 0;
   border: none;
-  border-top: none;
+  border-top: 1px solid #ddd; /* 🟢 GARIS PEMISAH */
   padding-left: 32px;
+  padding-right: 16px;
   outline: none;
+  font-size: 16px;
+  background: white;
+  box-sizing: border-box;
+  -webkit-appearance: none; /* 🟢 HAPUS STYLE DEFAULT IOS */
 }
+
+/* 🟢 SAFE AREA UNTUK NOTCH & HOME INDICATOR */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #chat-input {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(32px + env(safe-area-inset-bottom));
+  }
+  
+  #chatlog {
+    bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+  
+  #roster {
+    bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+}
+
 #chatroom::before {
   z-index: 1;
   display: block;
   content: ">";
   position: fixed;
   bottom: 0;
-  left: 0;
+  left: 200px; /* 🟢 SESUAIKAN DENGAN ROSTER */
   width: 32px;
   height: 32px;
   line-height: 32px;
@@ -95,6 +138,56 @@ p:last-of-type {
   font-weight: bold;
   color: #888;
   -webkit-text-stroke-width: 2px;
+  pointer-events: none; /* 🟢 TIDAK MENGHALANGI TAP */
+}
+
+/* ============================================ */
+/* 🟢 MOBILE: INPUT CHAT OPTIMASI KEYBOARD */
+/* ============================================ */
+@media(max-width:600px) {
+  #chat-input {
+    width: 100%; /* 🟢 FULL WIDTH DI MOBILE */
+    left: 0;
+    padding-left: 32px;
+    padding-right: 16px;
+    border-top: 1px solid #ddd;
+    font-size: 16px; /* 🟢 MINIMAL 16px UNTUK ZOOM PREVENTION */
+    -webkit-user-select: text; /* 🟢 ALLOW TEXT SELECTION */
+    user-select: text;
+  }
+  
+  #chatroom::before {
+    left: 0; /* 🟢 KEMBALI KE KIRI DI MOBILE */
+  }
+  
+  /* 🟢 FIX IOS KEYBOARD VIEWPORT ISSUE */
+  @supports (height: 100dvh) {
+    body {
+      height: 100dvh;
+    }
+  }
+}
+
+/* ============================================ */
+/* 🟢 TABLET: PENYESUAIAN UKURAN */
+/* ============================================ */
+@media(min-width:601px) and (max-width:900px) {
+  #roster {
+    width: 150px;
+  }
+  
+  #chatlog {
+    left: 150px;
+  }
+  
+  #chat-input {
+    width: calc(100% - 150px);
+    left: 150px;
+  }
+  
+  #chatroom::before {
+    left: 150px;
+  }
 }
 
 #name-form {
@@ -117,6 +210,7 @@ p:last-of-type {
   margin: 0;
   text-align: center;
   border: 1px solid #bbb;
+  font-size: 16px; /* 🟢 MINIMAL 16px */
 }
 
 #name-form p {
@@ -145,6 +239,7 @@ p:last-of-type {
   height: 2em;
   width: 16em;
   padding-left: 1em;
+  font-size: 16px; /* 🟢 MINIMAL 16px */
 }
 
 #room-form button {
@@ -353,14 +448,38 @@ function startChat() {
     }
   });
 
-  // Detect mobile keyboard appearing and disappearing, and adjust the scroll as appropriate.
+  // ============================================
+  // 🟢 OPTIMASI KEYBOARD MOBILE
+  // ============================================
   if('visualViewport' in window) {
-    window.visualViewport.addEventListener('resize', function(event) {
+    let viewport = window.visualViewport;
+    let initialViewportHeight = viewport.height;
+    
+    viewport.addEventListener('resize', function(event) {
+      // 🟢 SCROLL OTOMATIS SAAT KEYBOARD MUNCUL/HILANG
       if (isAtBottom) {
         chatlog.scrollBy(0, 1e8);
       }
+      
+      // 🟢 ATUR TINGGI ELEMEN SAAT KEYBOARD MUNCUL
+      let viewportChange = initialViewportHeight - viewport.height;
+      if (viewportChange > 100) { // Keyboard muncul
+        // Beri padding tambahan di bawah
+        chatlog.style.paddingBottom = '20px';
+      } else {
+        chatlog.style.paddingBottom = '8px';
+      }
     });
   }
+
+  // 🟢 FIX IOS INPUT FOCUS ISSUE
+  chatInput.addEventListener('focus', function() {
+    setTimeout(() => {
+      if (isAtBottom) {
+        chatlog.scrollBy(0, 1e8);
+      }
+    }, 300);
+  });
 
   join();
 }
