@@ -64,9 +64,62 @@ p:last-of-type {
   display: none;
 }
 
+/* ============================================ */
+/* 🟢 PARTICIPANTS LIST JELAS DI SEMUA DEVICE */
+/* ============================================ */
+
+/* MOBILE: Roster di atas input chat, scroll horizontal */
 @media(max-width:600px) {
-  #roster { display: none; }
-  #chatlog { right: 0; }
+  #roster { 
+    position: fixed;
+    bottom: 32px;
+    top: auto;
+    right: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    border-left: none;
+    border-top: 1px solid #ddd;
+    background: rgba(255, 255, 255, 0.95);
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 8px 4px;
+    display: flex !important;
+    align-items: center;
+    z-index: 2;
+  }
+  
+  #roster p {
+    display: inline-block;
+    margin: 0 6px;
+    padding: 4px 10px;
+    background: #f0f0f0;
+    border-radius: 16px;
+    font-size: 14px;
+    white-space: nowrap;
+    border: 1px solid #ddd;
+    flex-shrink: 0;
+  }
+  
+  #chatlog { 
+    right: 0;
+    bottom: 92px;
+  }
+  
+  #chat-input {
+    z-index: 3;
+  }
+}
+
+/* TABLET: Roster lebih kecil */
+@media(min-width:601px) and (max-width:900px) {
+  #roster {
+    width: 150px;
+    font-size: 14px;
+  }
+  #chatlog {
+    right: 150px;
+  }
 }
 
 #chat-input {
@@ -361,64 +414,8 @@ function startChat() {
     });
   }
 
-  // =============================================
-  // 🟢 SATU-SATUNYA PERUBAHAN: BARIS INI SAJA
-  // =============================================
-  // DARI: join();
-  // MENJADI:
-  validateGatewayRules();
-  // =============================================
-}
-
-// =============================================
-// 🟢 FUNGSI BARU: ATURAN GATEWAY
-// =============================================
-function validateGatewayRules() {
-  // ATURAN 1: Username tidak boleh "admin", "system", "root"
-  const bannedUsernames = ['admin', 'system', 'root', 'administrator'];
-  if (bannedUsernames.includes(username.toLowerCase())) {
-    addChatMessage("GATEWAY", "Username tidak diizinkan");
-    return;
-  }
-  
-  // ATURAN 2: Room tidak boleh mengandung kata terlarang
-  const bannedInRoom = ['password', 'token', 'secret', 'config'];
-  for (const word of bannedInRoom) {
-    if (roomname.toLowerCase().includes(word)) {
-      addChatMessage("GATEWAY", "Nama room mengandung kata terlarang");
-      return;
-    }
-  }
-  
-  // ATURAN 3: Username dan room tidak boleh sama
-  if (username.toLowerCase() === roomname.toLowerCase()) {
-    addChatMessage("GATEWAY", "Username dan room tidak boleh sama");
-    return;
-  }
-  
-  // ATURAN 4: Log attempt ke console (untuk monitoring)
-  console.log(`[GATEWAY] ${username} masuk ke ${roomname} pada ${new Date().toLocaleTimeString()}`);
-  
-  // ATURAN 5: Simpan session ke localStorage (opsional)
-  try {
-    const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
-    sessions.push({
-      user: username,
-      room: roomname,
-      time: new Date().toISOString()
-    });
-    // Simpan hanya 10 session terakhir
-    localStorage.setItem('chat_sessions', JSON.stringify(sessions.slice(-10)));
-  } catch (e) {
-    // Ignore localStorage errors
-  }
-  
-  // =============================================
-  // 🟢 JIKA SEMUA ATURAN LULUS, BARU JOIN CHAT
-  // =============================================
   join();
 }
-// =============================================
 
 let lastSeenTimestamp = 0;
 let wroteWelcomeMessages = false;
@@ -535,4 +532,4 @@ function addChatMessage(name, text) {
 startNameChooser();
 </script>
 <!--===================================================================================-->
-  </html>
+</html>
