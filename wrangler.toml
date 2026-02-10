@@ -2,12 +2,7 @@ name = "readtalk"
 compatibility_date = "2024-01-01"
 main = "src/chat.mjs"
 
-# Durable Object bindings
-[durable_objects]
-bindings = [
-  { name = "rooms", class_name = "ChatRoom" },
-  { name = "limiters", class_name = "RateLimiter" }
-]
+# ============ BINDINGS ============
 
 # KV Namespace binding
 kv_namespaces = [
@@ -20,18 +15,30 @@ binding = "READTALK_DB"
 database_name = "readtalk_db"
 database_id = "ff653b9c-4e2c-479d-8aa4-497da62de3c5"
 
-# Rules untuk HTML
+# R2 Bucket binding (DARI SCREENSHOT: READTALK_R2)
+[[r2_buckets]]
+binding = "READTALK_R2"
+bucket_name = "readtalk-r2"
+
+# Durable Object bindings
+[durable_objects]
+bindings = [
+  { name = "rooms", class_name = "ChatRoom" },
+  { name = "limiters", class_name = "RateLimiter" }
+]
+
+# ============ MIGRATIONS ============
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatRoom", "RateLimiter"]  # GANTI: new_sqlite_classes → new_classes
+
+# ============ RULES ============
 [[rules]]
 type = "Data"
 globs = ["**/*.html"]
 fallthrough = false
 
-# Migrations DO
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["ChatRoom", "RateLimiter"]
-
-# Observability
+# ============ OBSERVABILITY ============
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -46,3 +53,12 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+# ============ DEVELOPMENT (Optional) ============
+[dev]
+ip = "localhost"
+port = 8787
+local_protocol = "http"
+
+[build]
+upload.format = "service-worker"  # atau "modules" tergantung setup
