@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>READTalk</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== LAYER SYSTEM ===== */
+    .layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      overflow-y: auto;
+      display: none;
+    }
+
+    #layer-1 { display: flex; } /* Form login (default) */
+
+    /* ===== LAYER 1: FORM LOGIN ===== */
+    #layer-1 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+    }
+
+    /* Avatar Upload */
+    .avatar-upload-container {
+      text-align: center;
+    }
+
+    #avatar-preview {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: 0 auto;
+      background-color: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 3px solid #ff0000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+
+    #avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    #avatar-placeholder {
+      font-size: 40px;
+      color: #999;
+    }
+
+    #avatar-upload {
+      display: none;
+    }
+
+    .avatar-hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+
+    /* Input fields */
+    #name-input {
+      width: 100%;
+      padding: 15px 20px;
+      font-size: 18px;
+      border: 2px solid #ddd;
+      border-radius: 30px;
+      text-align: center;
+      outline: none;
+    }
+
+    #name-input:focus {
+      border-color: #ff0000;
+    }
+
+    .room-input-group {
+      display: flex;
+      width: 100%;
+    }
+
+    #room-name-input {
+      flex: 1;
+      padding: 15px 20px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-right: none;
+      border-radius: 30px 0 0 30px;
+      outline: none;
+      text-align: center;
+    }
+
+    #room-name-input:focus {
+      border-color: #ff0000;
+    }
+
+    #go-public {
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #ff0000;
+      color: white;
+      border: 2px solid #ff0000;
+      border-radius: 0 30px 30px 0;
+      cursor: pointer;
+    }
+
+    #go-public:hover {
+      background: #cc0000;
+    }
+
+    /* ===== LAYER 3: NAME CARD LIST ===== */
+    #layer-3 {
+      background: #ffffff;
+      display: none;
+      flex-direction: column;
+    }
+
+    /* Header READTalk + 3 titik */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .list-header h1 {
+      font-size: 24px;
+      color: #ff0000;
+      margin: 0;
+    }
+
+    .menu-dots {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: #666;
+      cursor: pointer;
+      padding: 0 8px;
+      line-height: 1;
+    }
+
+    .menu-dots:hover {
+      color: #ff0000;
+    }
+
+    /* Online counter */
+    .online-counter {
+      padding: 12px 20px;
+      color: #667781;
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* Name card list */
+    .contact-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      gap: 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f5f5f5;
+    }
+
+    .user-card:hover {
+      background: #f5f5f5;
+    }
+
+    .card-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ff0000;
+    }
+
+    .card-info {
+      flex: 1;
+    }
+
+    .card-name {
+      font-weight: 600;
+      font-size: 16px;
+      color: #111b21;
+      margin-bottom: 4px;
+    }
+
+    .card-username {
+      font-size: 14px;
+      color: #667781;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-dot.online {
+      background: #4caf50;
+      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    .status-dot.offline {
+      background: #bdbdbd;
+    }
+
+    /* ===== MODAL SETTINGS (tanpa logout) ===== */
+    #settings-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .settings-content {
+      background: white;
+      width: 90%;
+      max-width: 320px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+
+    .settings-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 16px;
+    }
+
+    .settings-item:hover {
+      background: #f5f5f5;
+    }
+
+    .settings-item:last-child {
+      border-bottom: none;
+    }
+
+    /* ===== LAYER 4: EDIT PROFILE ===== */
+    #layer-4 {
+      background: #ffffff;
+      display: none;
+      flex-direction: column;
+    }
+
+    .edit-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      background: #ffffff;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 8px;
+      margin-right: 8px;
+      color: #ff0000;
+    }
+
+    .edit-header h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111b21;
+    }
+
+    .edit-content {
+      flex: 1;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    #edit-avatar-preview {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 3px solid #ff0000;
+      cursor: pointer;
+    }
+
+    #edit-avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .edit-input {
+      width: 100%;
+      padding: 14px 18px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 30px;
+      outline: none;
+    }
+
+    .edit-input:focus {
+      border-color: #ff0000;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .save-btn:hover {
+      background: #cc0000;
+    }
+
+    /* Hidden file input */
+    #edit-avatar-upload {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== LAYER 1: FORM LOGIN ===== -->
+  <div id="layer-1" class="layer">
+    <div class="login-container">
+      <!-- Avatar Upload -->
+      <div class="avatar-upload-container">
+        <div id="avatar-preview" onclick="document.getElementById('avatar-upload').click()">
+          <img id="avatar-image" src="" alt="avatar">
+          <span id="avatar-placeholder">📷</span>
+        </div>
+        <input type="file" id="avatar-upload" accept="image/*">
+        <div class="avatar-hint">Click to upload avatar</div>
+      </div>
+
+      <!-- Your Name -->
+      <input type="text" id="name-input" placeholder="your name" maxlength="32" autocomplete="off">
+
+      <!-- Username (handle) -->
+      <div style="width: 100%;">
+        <div class="room-input-group">
+          <input type="text" id="room-name-input" placeholder="@username" maxlength="32">
+          <button type="button" id="go-public">Go</button>
+        </div>
+      </div>
+
+      <p style="color: #667781; font-size: 14px;">© 2026 READTalk</p>
+    </div>
+  </div>
+
+  <!-- ===== LAYER 3: NAME CARD LIST ===== -->
+  <div id="layer-3" class="layer">
+    <div class="list-header">
+      <h1>READTalk</h1>
+      <button class="menu-dots" id="menu-dots">⋮</button>
+    </div>
+
+    <div class="online-counter">
+      ONLINE <span id="online-count">0</span>
+    </div>
+
+    <div class="contact-list" id="contact-list">
+      <!-- Akan diisi JavaScript -->
+    </div>
+  </div>
+
+  <!-- ===== LAYER 4: EDIT PROFILE ===== -->
+  <div id="layer-4" class="layer">
+    <div class="edit-header">
+      <button class="back-btn" id="back-from-edit">←</button>
+      <h2>Edit Profile</h2>
+    </div>
+
+    <div class="edit-content">
+      <div id="edit-avatar-preview" onclick="document.getElementById('edit-avatar-upload').click()">
+        <img id="edit-avatar-image" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
+        <span id="edit-avatar-placeholder" style="font-size:40px; color:#999;">📷</span>
+      </div>
+      <input type="file" id="edit-avatar-upload" accept="image/*">
+
+      <input type="text" id="edit-name-input" class="edit-input" placeholder="Display name" maxlength="32">
+      <input type="text" id="edit-bio-input" class="edit-input" placeholder="Bio (optional)" maxlength="80">
+      
+      <button class="save-btn" id="save-profile">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL SETTINGS (tanpa logout) ===== -->
+  <div id="settings-modal">
+    <div class="settings-content">
+      <div class="settings-item" id="open-edit-profile">✏️ Edit Profile</div>
+      <div class="settings-item" id="toggle-dark">🌙 Dark Mode</div>
+      <div class="settings-item" id="open-settings">⚙️ Settings</div>
+      <!-- TIDAK ADA LOGOUT -->
+    </div>
+  </div>
+
+  <script>
+    // ===== GLOBAL =====
+    let currentUser = null;
+    let onlineUsers = new Map(); // userId -> online status
+    let currentWebSocket = null;
+    
+    // DOM Elements
+    const layer1 = document.getElementById('layer-1');
+    const layer3 = document.getElementById('layer-3');
+    const layer4 = document.getElementById('layer-4');
+    const settingsModal = document.getElementById('settings-modal');
+    
+    // Form elements
+    const nameInput = document.getElementById('name-input');
+    const roomNameInput = document.getElementById('room-name-input');
+    const goPublic = document.getElementById('go-public');
+    
+    // Avatar upload (layer 1)
+    const avatarUpload = document.getElementById('avatar-upload');
+    const avatarImage = document.getElementById('avatar-image');
+    const avatarPlaceholder = document.getElementById('avatar-placeholder');
+    
+    // Contact list
+    const contactList = document.getElementById('contact-list');
+    const onlineCount = document.getElementById('online-count');
+    
+    // Edit profile
+    const editNameInput = document.getElementById('edit-name-input');
+    const editBioInput = document.getElementById('edit-bio-input');
+    const editAvatarUpload = document.getElementById('edit-avatar-upload');
+    const editAvatarImage = document.getElementById('edit-avatar-image');
+    const editAvatarPlaceholder = document.getElementById('edit-avatar-placeholder');
+    const saveProfile = document.getElementById('save-profile');
+    const backFromEdit = document.getElementById('back-from-edit');
+    
+    // Menu
+    const menuDots = document.getElementById('menu-dots');
+    const openEditProfile = document.getElementById('open-edit-profile');
+    
+    let hostname = window.location.host || 'localhost:8787';
+    
+    // ===== LOAD SAVED USER =====
+    (function init() {
+      const saved = localStorage.getItem('readtalk_user');
+      if (saved) {
+        try {
+          currentUser = JSON.parse(saved);
+          // Auto restore ke layer 3
+          showLayer(3);
+          renderContactList();
+          connectWebSocket();
+        } catch (e) {
+          showLayer(1);
+        }
+      } else {
+        showLayer(1);
+      }
+    })();
+    
+    // ===== SHOW LAYER =====
+    function showLayer(layer) {
+      layer1.style.display = 'none';
+      layer3.style.display = 'none';
+      layer4.style.display = 'none';
+      
+      if (layer === 1) layer1.style.display = 'flex';
+      if (layer === 3) {
+        layer3.style.display = 'flex';
+        renderContactList();
+      }
+      if (layer === 4) {
+        layer4.style.display = 'flex';
+        // Load current user data ke form edit
+        if (currentUser) {
+          editNameInput.value = currentUser.name || '';
+          editBioInput.value = currentUser.bio || '';
+          if (currentUser.avatar) {
+            editAvatarImage.src = currentUser.avatar;
+            editAvatarImage.style.display = 'block';
+            editAvatarPlaceholder.style.display = 'none';
+          }
+        }
+      }
+    }
+    
+    // ===== AVATAR UPLOAD (LAYER 1) =====
+    avatarUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          avatarImage.src = ev.target.result;
+          avatarImage.style.display = 'block';
+          avatarPlaceholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // ===== GO BUTTON =====
+    goPublic.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      let handle = roomNameInput.value.trim().replace(/^@/, '');
+      
+      if (!name || !handle) {
+        alert('Please enter your name and username');
+        return;
+      }
+      
+      handle = handle.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 32);
+      
+      // Create user object
+      currentUser = {
+        id: handle,
+        name: name,
+        handle: handle,
+        avatar: avatarImage.src || '',
+        bio: '',
+        online: true
+      };
+      
+      // Save to localStorage
+      localStorage.setItem('readtalk_user', JSON.stringify(currentUser));
+      
+      // Show layer 3
+      showLayer(3);
+      connectWebSocket();
+    });
+    
+    // ===== RENDER CONTACT LIST =====
+    function renderContactList() {
+      if (!currentUser) return;
+      
+      // For demo, we'll show some dummy contacts
+      const dummyUsers = [
+        { id: 'budi', name: 'Budi', handle: 'budi', avatar: '', online: true },
+        { id: 'ani', name: 'Ani', handle: 'ani', avatar: '', online: false },
+        { id: 'citra', name: 'Citra', handle: 'citra', avatar: '', online: true },
+        { id: 'doni', name: 'Doni', handle: 'doni', avatar: '', online: false }
+      ];
+      
+      let html = '';
+      let online = 0;
+      
+      dummyUsers.forEach(user => {
+        if (user.online) online++;
+        html += `
+          <div class="user-card" data-id="${user.id}">
+            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg...%3E'}" class="card-avatar">
+            <div class="card-info">
+              <div class="card-name">${user.name}</div>
+              <div class="card-username">@${user.handle}</div>
+            </div>
+            <div class="status-dot ${user.online ? 'online' : 'offline'}"></div>
+          </div>
+        `;
+      });
+      
+      contactList.innerHTML = html;
+      onlineCount.textContent = online;
+    }
+    
+    // ===== WEBSOCKET (ONLY FOR ONLINE STATUS) =====
+    function connectWebSocket() {
+      if (!currentUser) return;
+      
+      const wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
+      const ws = new WebSocket(`${wss}${hostname}/api/user/${currentUser.id}/status`);
+      
+      ws.addEventListener('open', () => {
+        console.log('WebSocket connected for online status');
+        currentWebSocket = ws;
+        
+        // Send heartbeat every 30 seconds
+        setInterval(() => {
+          if (currentWebSocket) {
+            currentWebSocket.send(JSON.stringify({ type: 'heartbeat' }));
+          }
+        }, 30000);
+      });
+      
+      ws.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'online_status') {
+            // Update online status of a user
+            updateUserOnlineStatus(data.userId, data.online);
+          }
+        } catch (e) {
+          console.error('WebSocket message error:', e);
+        }
+      });
+      
+      ws.addEventListener('close', () => {
+        console.log('WebSocket closed, reconnecting...');
+        setTimeout(connectWebSocket, 5000);
+      });
+      
+      ws.addEventListener('error', (err) => {
+        console.error('WebSocket error:', err);
+      });
+    }
+    
+    function updateUserOnlineStatus(userId, online) {
+      // Update UI
+      const cards = document.querySelectorAll('.user-card');
+      cards.forEach(card => {
+        if (card.dataset.id === userId) {
+          const dot = card.querySelector('.status-dot');
+          if (dot) {
+            dot.className = `status-dot ${online ? 'online' : 'offline'}`;
+          }
+        }
+      });
+      
+      // Update counter
+      const onlineTotal = document.querySelectorAll('.status-dot.online').length;
+      onlineCount.textContent = onlineTotal;
+    }
+    
+    // ===== MENU DOTS (OPEN SETTINGS MODAL) =====
+    menuDots.addEventListener('click', () => {
+      settingsModal.style.display = 'flex';
+    });
+    
+    // Close modal when clicking outside
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) {
+        settingsModal.style.display = 'none';
+      }
+    });
+    
+    // Open edit profile from modal
+    openEditProfile.addEventListener('click', () => {
+      settingsModal.style.display = 'none';
+      showLayer(4);
+    });
+    
+    // ===== EDIT PROFILE =====
+    editAvatarUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          editAvatarImage.src = ev.target.result;
+          editAvatarImage.style.display = 'block';
+          editAvatarPlaceholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    saveProfile.addEventListener('click', () => {
+      if (!currentUser) return;
+      
+      // Update user data
+      currentUser.name = editNameInput.value.trim() || currentUser.name;
+      currentUser.bio = editBioInput.value.trim();
+      if (editAvatarImage.src) {
+        currentUser.avatar = editAvatarImage.src;
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('readtalk_user', JSON.stringify(currentUser));
+      
+      // Go back to layer 3
+      showLayer(3);
+    });
+    
+    backFromEdit.addEventListener('click', () => {
+      showLayer(3);
+    });
+    
+    // ===== CLEANUP ON EXIT (optional) =====
+    window.addEventListener('beforeunload', () => {
+      if (currentWebSocket) {
+        currentWebSocket.close();
+      }
+    });
+  </script>
+</body>
+</html>
