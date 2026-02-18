@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>READTalk</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== AREA LOGIN (LINKTREE STYLE) ===== */
+    #name-form {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 100;
+    }
+
+    /* ===== HEADER 25% DENGAN GAMBAR ===== */
+    .profile-header {
+      width: 100%;
+      height: 25vh;
+      position: relative;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      margin-bottom: 50px;
+    }
+
+    .header-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    .header-avatar {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    #avatar-preview {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      border: 4px solid white;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    #avatar-preview:hover {
+      transform: scale(1.02);
+    }
+    #avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    #avatar-placeholder {
+      font-size: 42px;
+      color: #aaa;
+      line-height: 1;
+    }
+    #avatar-upload {
+      display: none;
+    }
+
+    /* ===== KONTEN TENGAH (LINKTREE) ===== */
+    .linktree-content {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    #name-input {
+      width: 100%;
+      padding: 16px 22px;
+      font-size: 18px;
+      border: 2px solid #e0e0e0;
+      border-radius: 50px;
+      text-align: center;
+      background: #f8f9fa;
+      outline: none;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    #name-input:focus {
+      border-color: #ff0000;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(255,0,0,0.08);
+    }
+
+    .room-group {
+      display: flex;
+      width: 100%;
+      gap: 10px;
+    }
+
+    #room-name-input {
+      flex: 1;
+      padding: 16px 22px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 50px;
+      text-align: center;
+      background: #f8f9fa;
+      outline: none;
+      transition: border 0.2s;
+    }
+    #room-name-input:focus {
+      border-color: #ff0000;
+    }
+
+    #go-public {
+      padding: 0 30px;
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 10px rgba(255,0,0,0.3);
+    }
+    #go-public:hover {
+      background: #cc0000;
+      transform: scale(1.02);
+    }
+    #go-public:active {
+      transform: scale(0.98);
+    }
+
+    .linktree-footer {
+      margin-top: auto;
+      padding: 25px 0;
+      color: #aaa;
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    /* ===== AREA ROOM PANEL (setelah login) ===== */
+    #room-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #efeae2;
+      display: none;
+      flex-direction: column;
+    }
+
+    /* HEADER: READTalk kiri + ⋮ kanan (persis WA) */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+    }
+    .app-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ff0000;
+    }
+    .three-dots-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #555;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    .three-dots-btn:hover {
+      background: #f0f0f0;
+    }
+
+    /* SEARCH BAR */
+    .search-container {
+      padding: 12px 20px;
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+    }
+    .search-bar {
+      width: 100%;
+      padding: 12px 18px;
+      border: 1px solid #e0e0e0;
+      border-radius: 30px;
+      background: #f5f5f5;
+      font-size: 16px;
+      outline: none;
+    }
+    .search-bar:focus {
+      border-color: #ff0000;
+      background: white;
+    }
+
+    /* SECTION HEADER */
+    .section-header {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      background: #efeae2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ONLINE USERS LIST (GANTI CHATLOG) */
+    #users-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 16px;
+      background: #efeae2;
+    }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: white;
+      border-radius: 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .user-item:hover {
+      transform: scale(1.01);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    .user-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 15px;
+      border: 2px solid #ff0000;
+    }
+
+    .user-info {
+      flex: 1;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .status-online { background: #4caf50; }
+    .status-away { background: #ff9800; }
+    .status-busy { background: #f44336; }
+    .status-offline { background: #9e9e9e; }
+
+    .user-status {
+      font-size: 14px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* BOTTOM NAV 4 TOMBOL (persis WA) */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 12px 0;
+      background: #ffffff;
+      border-top: 1px solid #ddd;
+    }
+    .nav-item {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 30px;
+      transition: all 0.2s;
+    }
+    .nav-item.active {
+      color: #ff0000;
+      background: #ffeeee;
+    }
+
+    /* 3 TITIK MENU DROPDOWN */
+    .dots-menu {
+      position: fixed;
+      top: 70px;
+      right: 15px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+      padding: 8px 0;
+      width: 240px;
+      z-index: 300;
+      border: 1px solid #eee;
+    }
+    .dots-menu.hidden {
+      display: none;
+    }
+    .dots-menu button {
+      width: 100%;
+      padding: 14px 20px;
+      background: none;
+      border: none;
+      text-align: left;
+      font-size: 15px;
+      color: #111;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dots-menu button:hover {
+      background: #f5f5f5;
+    }
+
+    /* MODAL 4 LAYER (KOSONG, UNTUK LOE ISI) */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+      backdrop-filter: blur(5px);
+    }
+    .modal.hidden {
+      display: none;
+    }
+    .modal-content {
+      background: white;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 28px;
+      padding: 24px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-content h3 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #111;
+      text-align: center;
+    }
+
+    /* LAYER STYLES (LOE ISI SENDIRI) */
+    .layer {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .layer:last-child {
+      border-bottom: none;
+    }
+    .layer label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #ff0000;
+    }
+
+    /* EDIT NAME MODAL (TETAP, TAPI NANTI DIGABUNG) */
+    #edit-name-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .edit-modal-content {
+      background: white;
+      width: 90%;
+      max-width: 350px;
+      padding: 25px;
+      border-radius: 24px;
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== FORM LOGIN (LINKTREE STYLE) ===== -->
+  <form id="name-form">
+    <div class="profile-header" id="profile-header" style="background-image: linear-gradient(145deg, #ff0000, #b30000);">
+      <div class="header-overlay"></div>
+      <div class="header-avatar">
+        <div id="avatar-preview" onclick="document.getElementById('avatar-upload').click()">
+          <img id="avatar-image" src="" alt="avatar">
+          <span id="avatar-placeholder">📸</span>
+        </div>
+        <input type="file" id="avatar-upload" accept="image/*">
+      </div>
+    </div>
+
+    <div class="linktree-content">
+      <input type="text" id="name-input" placeholder="@username" maxlength="32" autocomplete="off">
+      <div class="room-group">
+        <input type="text" id="room-name-input" placeholder="room name" maxlength="32">
+        <button type="button" id="go-public">Go</button>
+      </div>
+    </div>
+
+    <div class="linktree-footer">
+      © 2026 READTalk · Linktree Style
+    </div>
+  </form>
+
+  <!-- ===== ROOM PANEL (SETELAH LOGIN) ===== -->
+  <div id="room-panel">
+    <!-- HEADER: READTalk kiri + ⋮ kanan -->
+    <div class="panel-header">
+      <h1 class="app-title">READTalk</h1>
+      <button class="three-dots-btn" id="threeDotsBtn">⋮</button>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <div class="search-container">
+      <input type="text" class="search-bar" placeholder="Tanya Meta AI atau Cari" id="searchInput">
+    </div>
+
+    <!-- SECTION HEADER -->
+    <div class="section-header">DIARSIPKAN</div>
+
+    <!-- ONLINE USERS LIST (GANTI CHATLOG) -->
+    <div id="users-container">
+      <!-- Akan diisi dari WebSocket -->
+    </div>
+
+    <!-- BOTTOM NAV 4 TOMBOL -->
+    <div class="bottom-nav">
+      <button class="nav-item active" data-tab="chat">💬 Chat</button>
+      <button class="nav-item" data-tab="updates">📰 Pembaruan</button>
+      <button class="nav-item" data-tab="communities">👥 Komunitas</button>
+      <button class="nav-item" data-tab="calls">📞 Panggilan</button>
+    </div>
+  </div>
+
+  <!-- ===== 3 TITIK MENU DROPDOWN ===== -->
+  <div class="dots-menu hidden" id="dotsMenu">
+    <button id="newGroupBtn">👥 Grup baru</button>
+    <button id="newCommunityBtn">🌍 Komunitas baru</button>
+    <button id="broadcastBtn">📢 Daftar siaran</button>
+    <button id="devicesBtn">📱 Perangkat tertaut</button>
+    <button id="starredBtn">⭐ Berbintang</button>
+    <button id="readAllBtn">✓ Baca semua</button>
+    <button id="settingsBtn">⚙️ Pengaturan</button>
+    <button id="themeToggle">🌙 Night Mode</button>
+  </div>
+
+  <!-- ===== MODAL 4 LAYER (KOSONG, LOE ISI SENDIRI) ===== -->
+  <div class="modal hidden" id="profileModal">
+    <div class="modal-content">
+      <h3>Settings</h3>
+      
+      <!-- LAYER 1: Avatar (isi sendiri) -->
+      <div class="layer">
+        <label>Avatar</label>
+        <!-- Loe isi sendiri -->
+      </div>
+      
+      <!-- LAYER 2: Your name (isi sendiri) -->
+      <div class="layer">
+        <label>Your Name</label>
+        <!-- Loe isi sendiri -->
+      </div>
+      
+      <!-- LAYER 3: Status (isi sendiri) -->
+      <div class="layer">
+        <label>Status</label>
+        <!-- Loe isi sendiri -->
+      </div>
+      
+      <!-- LAYER 4: Info + Chat Button (isi sendiri) -->
+      <div class="layer">
+        <label>Info & Chat</label>
+        <!-- Loe isi sendiri -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL EDIT NAME (SEMENTARA TETAP, NANTI DIGABUNG) ===== -->
+  <div id="edit-name-modal">
+    <div class="edit-modal-content">
+      <h3>Edit your name</h3>
+      <input type="text" id="edit-name-input" maxlength="32" placeholder="new name">
+      <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+        <button id="cancel-edit" style="padding: 10px 24px; border-radius: 40px; border: none; background: #f0f2f5; cursor: pointer;">Cancel</button>
+        <button id="save-edit" style="padding: 10px 24px; border-radius: 40px; border: none; background: #ff0000; color: white; cursor: pointer;">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== GLOBAL =====
+    let currentWebSocket = null;
+    let username = '';
+    let roomname = '';
+    let avatarBase64 = localStorage.getItem('readtalk_avatar') || '';
+
+    // DOM elements
+    const nameForm = document.getElementById('name-form');
+    const nameInput = document.getElementById('name-input');
+    const roomNameInput = document.getElementById('room-name-input');
+    const goPublic = document.getElementById('go-public');
+    const roomPanel = document.getElementById('room-panel');
+    const usersContainer = document.getElementById('users-container');
+    const threeDotsBtn = document.getElementById('threeDotsBtn');
+    const dotsMenu = document.getElementById('dotsMenu');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const profileModal = document.getElementById('profileModal');
+    const themeToggle = document.getElementById('themeToggle');
+
+    // Avatar elements
+    const avatarPreview = document.getElementById('avatar-preview');
+    const avatarImage = document.getElementById('avatar-image');
+    const avatarPlaceholder = document.getElementById('avatar-placeholder');
+    const avatarUpload = document.getElementById('avatar-upload');
+
+    // Edit name modal (sementara)
+    const editNameBtn = document.getElementById('edit-name-btn');
+    const editModal = document.getElementById('edit-name-modal');
+    const editInput = document.getElementById('edit-name-input');
+    const cancelEdit = document.getElementById('cancel-edit');
+    const saveEdit = document.getElementById('save-edit');
+    const displayName = document.getElementById('display-name'); // Masih ada di DOM lama, akan dihapus nanti
+    const displayRoom = document.getElementById('display-room');
+    const chatAvatar = document.getElementById('chat-avatar');
+
+    let hostname = window.location.host;
+    if (!hostname) hostname = 'localhost:8787';
+
+    // ===== LOAD SAVED DATA =====
+    const savedUsername = localStorage.getItem('readtalk_username');
+    if (savedUsername) nameInput.value = savedUsername;
+    if (avatarBase64) {
+      avatarImage.src = avatarBase64;
+      avatarImage.style.display = 'block';
+      avatarPlaceholder.style.display = 'none';
+    }
+
+    // ===== AVATAR UPLOAD =====
+    avatarUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          avatarBase64 = ev.target.result;
+          avatarImage.src = avatarBase64;
+          avatarImage.style.display = 'block';
+          avatarPlaceholder.style.display = 'none';
+          localStorage.setItem('readtalk_avatar', avatarBase64);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // ===== HASH HANDLING =====
+    if (window.location.hash.length > 1) {
+      roomname = window.location.hash.slice(1);
+      roomNameInput.value = roomname;
+      roomNameInput.disabled = true;
+    } else {
+      roomNameInput.disabled = false;
+    }
+
+    // ===== GO BUTTON =====
+    goPublic.addEventListener('click', () => {
+      username = nameInput.value.trim();
+      roomname = roomNameInput.value.trim() || window.location.hash.slice(1);
+
+      if (!username) { alert('Enter your name'); nameInput.focus(); return; }
+      if (!roomname) { alert('Enter room name'); roomNameInput.focus(); return; }
+
+      roomname = roomname.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+      if (roomname.length > 32) { alert('Max 32 chars'); return; }
+
+      localStorage.setItem('readtalk_username', username);
+      if (avatarBase64) localStorage.setItem('readtalk_avatar', avatarBase64);
+
+      window.location.hash = roomname;
+      startRoomPanel();
+    });
+
+    roomNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); goPublic.click(); }
+    });
+
+    // ===== START ROOM PANEL (GANTI STARTCHAT) =====
+    function startRoomPanel() {
+      nameForm.style.display = 'none';
+      roomPanel.style.display = 'flex';
+
+      // Tampilkan user sendiri di list (sementara, nanti dari WebSocket)
+      addUserToList({
+        name: username,
+        status: 'online',
+        avatar: avatarBase64,
+        isYou: true
+      });
+
+      // Koneksi WebSocket tetap sama
+      joinWebSocket();
+    }
+
+    // ===== WEBSOCKET (TETAP SAMA) =====
+    function joinWebSocket() {
+      const wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
+      const ws = new WebSocket(`${wss}${hostname}/api/room/${roomname}/websocket`);
+      let rejoined = false;
+      let startTime = Date.now();
+
+      const rejoin = async () => {
+        if (!rejoined) {
+          rejoined = true;
+          currentWebSocket = null;
+          const timeSince = Date.now() - startTime;
+          if (timeSince < 10000) await new Promise(r => setTimeout(r, 10000 - timeSince));
+          joinWebSocket();
+        }
+      };
+
+      ws.addEventListener('open', () => {
+        currentWebSocket = ws;
+        ws.send(JSON.stringify({ name: username, avatar: avatarBase64 }));
+      });
+
+      ws.addEventListener('message', (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.error) {
+          console.error('WebSocket error:', data.error);
+        } else if (data.joined) {
+          // User lain join
+          addUserToList({ name: data.joined, status: 'online' });
+        } else if (data.quit) {
+          // User keluar
+          removeUserFromList(data.quit);
+        } else if (data.ready) {
+          // Siap, bisa request list users
+          console.log('Ready, room:', roomname);
+        } else if (data.name_changed) {
+          // Update nama user
+          updateUserName(data.oldName, data.newName);
+        }
+        // Abaikan pesan chat (data.message) karena kita userbased
+      });
+
+      ws.addEventListener('close', rejoin);
+      ws.addEventListener('error', rejoin);
+    }
+
+    // ===== USER LIST FUNCTIONS =====
+    function addUserToList(user) {
+      const userEl = document.createElement('div');
+      userEl.className = 'user-item';
+      userEl.dataset.username = user.name;
+      
+      const statusClass = user.status === 'online' ? 'status-online' : 
+                         user.status === 'away' ? 'status-away' : 
+                         user.status === 'busy' ? 'status-busy' : 'status-offline';
+      
+      userEl.innerHTML = `
+        <img class="user-avatar" src="${user.avatar || 'data:image/svg+xml,%3Csvg...%3E'}" alt="avatar">
+        <div class="user-info">
+          <div class="user-name">
+            <span class="status-indicator ${statusClass}"></span>
+            ${user.name} ${user.isYou ? '(kamu)' : ''}
+          </div>
+          <div class="user-status">${user.status || 'online'}</div>
+        </div>
+      `;
+      
+      usersContainer.appendChild(userEl);
+    }
+
+    function removeUserFromList(username) {
+      const items = document.querySelectorAll('.user-item');
+      items.forEach(item => {
+        if (item.dataset.username === username) {
+          item.remove();
+        }
+      });
+    }
+
+    function updateUserName(oldName, newName) {
+      const items = document.querySelectorAll('.user-item');
+      items.forEach(item => {
+        if (item.dataset.username === oldName) {
+          item.dataset.username = newName;
+          const nameSpan = item.querySelector('.user-name');
+          if (nameSpan) {
+            nameSpan.innerHTML = nameSpan.innerHTML.replace(oldName, newName);
+          }
+        }
+      });
+    }
+
+    // ===== 3 TITIK MENU =====
+    threeDotsBtn.addEventListener('click', () => {
+      dotsMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!threeDotsBtn.contains(e.target) && !dotsMenu.contains(e.target)) {
+        dotsMenu.classList.add('hidden');
+      }
+    });
+
+    // ===== SETTINGS MENU → BUKA MODAL 4 LAYER =====
+    settingsBtn.addEventListener('click', () => {
+      profileModal.classList.remove('hidden');
+      dotsMenu.classList.add('hidden');
+    });
+
+    // ===== CLOSE MODAL =====
+    profileModal.addEventListener('click', (e) => {
+      if (e.target === profileModal) {
+        profileModal.classList.add('hidden');
+      }
+    });
+
+    // ===== THEME TOGGLE (OPSIONAL) =====
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      // Loe bisa tambahin CSS dark mode nanti
+    });
+
+    // ===== BOTTOM NAV =====
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // Nanti loe handle tab change
+      });
+    });
+
+    // ===== EDIT NAME MODAL (SEMENTARA) =====
+    // Nanti akan dipindah ke modal 4 layer
+    if (editNameBtn) {
+      editNameBtn.addEventListener('click', () => {
+        editInput.value = username;
+        editModal.style.display = 'flex';
+      });
+    }
+
+    cancelEdit.addEventListener('click', () => {
+      editModal.style.display = 'none';
+    });
+
+    saveEdit.addEventListener('click', () => {
+      const newName = editInput.value.trim();
+      if (newName && newName !== username) {
+        username = newName;
+        localStorage.setItem('readtalk_username', newName);
+        if (currentWebSocket) {
+          currentWebSocket.send(JSON.stringify({ type: 'update_name', newName }));
+        }
+        // Update di UI
+        const userItems = document.querySelectorAll('.user-item');
+        userItems.forEach(item => {
+          if (item.dataset.username === username) {
+            const nameSpan = item.querySelector('.user-name');
+            if (nameSpan) {
+              nameSpan.innerHTML = nameSpan.innerHTML.replace(username, newName);
+            }
+            item.dataset.username = newName;
+          }
+        });
+      }
+      editModal.style.display = 'none';
+    });
+
+    editModal.addEventListener('click', (e) => {
+      if (e.target === editModal) editModal.style.display = 'none';
+    });
+
+    // ===== AUTO RESTORE SESSION =====
+    (function init() {
+      const savedUser = localStorage.getItem('readtalk_username');
+      const roomHash = window.location.hash.slice(1);
+      if (savedUser && roomHash) {
+        username = savedUser;
+        roomname = roomHash;
+        avatarBase64 = localStorage.getItem('readtalk_avatar') || '';
+        nameInput.value = savedUser;
+        roomNameInput.value = roomHash;
+        roomNameInput.disabled = true;
+        startRoomPanel();
+      }
+    })();
+  </script>
+</body>
+</html>
