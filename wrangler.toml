@@ -20,6 +20,12 @@ database_id = "ff653b9c-4e2c-479d-8aa4-497da62de3c5"
 binding = "READTALK_R2"
 bucket_name = "readtalk-r2"
 
+# 🔥 SERVICE BINDING KE OPENAUTH (TAMBAHAN)
+[[services]]
+binding = "OPENAUTH"
+service = "openauth"  # Nama worker OpenAuth loe
+environment = "production"  # (opsional, kalo ada multiple env)
+
 # Durable Object bindings
 [durable_objects]
 bindings = [
@@ -54,9 +60,9 @@ enabled = false
 persist = true
 head_sampling_rate = 1
 
-# ============ BUILD (PAKAI MODULES) ============
+# ============ BUILD ============
 [build]
-upload.format = "modules"  # UBAH dari service-worker ke modules
+upload.format = "modules"
 
 # ============ DEVELOPMENT ============
 [dev]
