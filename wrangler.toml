@@ -1,4 +1,4 @@
-name = "room"
+name = "account"
 compatibility_date = "2024-01-01"
 main = "src/global.mjs"
 
