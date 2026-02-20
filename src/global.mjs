@@ -87,12 +87,12 @@ async function handleApiRequest(path, request, env) {
           
           // 1. Cek berdasarkan email (kalau ada)
           if (email) {
-            identitas = await env.USER_KV.get(`email:${email}`);
+            identitas = await env.READTALK_KV.get(`email:${email}`);
           }
           
           // 2. Kalau tidak ada email atau tidak ketemu, cek berdasarkan code
           if (!identitas) {
-            identitas = await env.USER_KV.get(`code:${code}`);
+            identitas = await env.READTALK_KV.get(`code:${code}`);
           }
           
           if (!identitas) {
@@ -102,7 +102,7 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Ambil data lengkap user
-          userData = await env.USER_KV.get(`user:${identitas}`);
+          userData = await env.READTALK_KV.get(`user:${identitas}`);
           
           if (!userData) {
             return new Response(JSON.stringify({ exists: false }), {
@@ -111,7 +111,7 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Update mapping code ke identitas (untuk code baru)
-          await env.USER_KV.put(`code:${code}`, identitas, {
+          await env.READTALK_KV.put(`code:${code}`, identitas, {
             expirationTtl: 60 * 60 * 24 * 90, // 90 hari
           });
           
@@ -149,7 +149,7 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Cek apakah email sudah terdaftar
-          const existingIdentitas = await env.USER_KV.get(`email:${email}`);
+          const existingIdentitas = await env.READTALK_KV.get(`email:${email}`);
           if (existingIdentitas) {
             return new Response(JSON.stringify({ error: "Email sudah terdaftar" }), { 
               status: 409,
@@ -158,7 +158,7 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Cek apakah identitas sudah dipakai
-          const existingCode = await env.USER_KV.get(`identitas:${identitas}`);
+          const existingCode = await env.READTALK_KV.get(`identitas:${identitas}`);
           if (existingCode) {
             return new Response(JSON.stringify({ error: "Identitas sudah digunakan" }), { 
               status: 409,
@@ -167,17 +167,17 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Simpan mapping email -> identitas (PRIMARY)
-          await env.USER_KV.put(`email:${email}`, identitas, {
+          await env.READTALK_KV.put(`email:${email}`, identitas, {
             expirationTtl: 60 * 60 * 24 * 365, // 1 tahun (lebih lama)
           });
           
           // Simpan mapping code -> identitas (sementara)
-          await env.USER_KV.put(`code:${code}`, identitas, {
+          await env.READTALK_KV.put(`code:${code}`, identitas, {
             expirationTtl: 60 * 60 * 24 * 90, // 90 hari
           });
           
           // Simpan mapping identitas -> code
-          await env.USER_KV.put(`identitas:${identitas}`, code, {
+          await env.READTALK_KV.put(`identitas:${identitas}`, code, {
             expirationTtl: 60 * 60 * 24 * 90,
           });
           
@@ -191,7 +191,7 @@ async function handleApiRequest(path, request, env) {
             createdAt: Date.now(),
           });
           
-          await env.USER_KV.put(`user:${identitas}`, userData, {
+          await env.READTALK_KV.put(`user:${identitas}`, userData, {
             expirationTtl: 60 * 60 * 24 * 365, // 1 tahun
           });
           
@@ -217,11 +217,11 @@ async function handleApiRequest(path, request, env) {
           const { name, avatar, about } = data;
           
           // Ambil identitas dari mapping code
-          let identitas = await env.USER_KV.get(`code:${code}`);
+          let identitas = await env.READTALK_KV.get(`code:${code}`);
           
           // Kalau tidak ada, coba cek via email
           if (!identitas && email) {
-            identitas = await env.USER_KV.get(`email:${email}`);
+            identitas = await env.READTALK_KV.get(`email:${email}`);
           }
           
           if (!identitas) {
@@ -232,7 +232,7 @@ async function handleApiRequest(path, request, env) {
           }
           
           // Ambil data existing
-          const existingData = await env.USER_KV.get(`user:${identitas}`);
+          const existingData = await env.READTALK_KV.get(`user:${identitas}`);
           const userData = existingData ? JSON.parse(existingData) : {};
           
           // Update data
@@ -242,7 +242,7 @@ async function handleApiRequest(path, request, env) {
           userData.updatedAt = Date.now();
           
           // Simpan kembali
-          await env.USER_KV.put(`user:${identitas}`, JSON.stringify(userData), {
+          await env.READTALK_KV.put(`user:${identitas}`, JSON.stringify(userData), {
             expirationTtl: 60 * 60 * 24 * 365, // 1 tahun
           });
           
