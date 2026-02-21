@@ -39,7 +39,7 @@ export default {
 };
 
 async function handleApiRequest(path, request, env) {
-  // ===== ENDPOINT EXCHANGE CODE (PAKE SERVICE BINDING OPENAUTH) =====
+  // ===== EXCHANGE CODE - LANGSUNG QUERY D1 =====
   if (path[0] === "exchange-code" && request.method === "POST") {
     try {
       const { code } = await request.json();
@@ -51,29 +51,28 @@ async function handleApiRequest(path, request, env) {
         });
       }
       
-      // PAKE SERVICE BINDING OPENAUTH - langsung akses D1 mereka
-      const openAuthRes = await env.OPENAUTH.fetch(`https://openauth.soeparnocorp.workers.dev/user?code=${code}`);
+      // LANGSUNG QUERY D1 - tabel user punya OpenAuth
+      const user = await env.READTALK_DB.prepare(
+        "SELECT email, name FROM user WHERE code = ?"
+      ).bind(code).first();
       
-      if (!openAuthRes.ok) {
-        return new Response(JSON.stringify({ error: "Failed to get user from OpenAuth" }), { 
-          status: 400,
+      if (user) {
+        // USER DITEMUKAN
+        return new Response(JSON.stringify({
+          exists: true,
+          name: user.name || user.email.split('@')[0],
+          email: user.email
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } else {
+        // CODE TIDAK DITEMUKAN
+        return new Response(JSON.stringify({ 
+          exists: false
+        }), {
           headers: { "Content-Type": "application/json" }
         });
       }
-      
-      const userData = await openAuthRes.json();
-      const email = userData.email;
-      const name = userData.name || email.split('@')[0]; // Default name dari email
-      
-      // Data user untuk dikembalikan ke frontend
-      return new Response(JSON.stringify({
-        exists: true,
-        name: name,
-        email: email,
-        id: userData.id
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
       
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), { 
@@ -83,7 +82,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
   
-  // ===== ENDPOINT SIMPAN ROOM KE KV =====
+  // ===== SIMPAN ROOM KE KV =====
   if (path[0] === "save-room" && request.method === "POST") {
     try {
       const { roomName, isPrivate, email } = await request.json();
@@ -102,7 +101,7 @@ async function handleApiRequest(path, request, env) {
         createdAt: Date.now()
       });
       
-      // SIMPAN KE KV (pake roomName sebagai key)
+      // SIMPAN KE KV
       await env.READTALK_KV.put(`room:${roomName}`, roomData);
       
       return new Response(JSON.stringify({ success: true }), {
@@ -116,7 +115,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
   
-  // ===== ENDPOINT GET ROOM DARI KV =====
+  // ===== AMBIL ROOM DARI KV =====
   if (path[0] === "get-room" && request.method === "GET") {
     try {
       const url = new URL(request.url);
@@ -148,7 +147,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // ===== ENDPOINT ROOM (DUrable Objects) =====
+  // ===== ROOM (Durable Objects) =====
   switch (path[0]) {
     case "room": {
       if (!path[1]) {
