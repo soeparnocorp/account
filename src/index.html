@@ -1,4 +1,3 @@
-// index.html //
 <!DOCTYPE html>
 <html>
 <head>
@@ -11,7 +10,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* CHATLOG - di KANAN */
 #chatlog {
   position: fixed;
   top: 0;
@@ -29,7 +27,6 @@ body {
   height: calc(100vh - 32px - 5em);
 }
 
-/* ROSTER - di KIRI */
 #roster {
   position: fixed;
   left: 0;
@@ -53,9 +50,7 @@ p:last-of-type {
   display: none;
 }
 
-/* ===== SMARTPHONE STYLES ===== */
 @media(max-width:600px) {
-  /* Roster full screen */
   #roster {
     display: block;
     width: 100%;
@@ -63,17 +58,12 @@ p:last-of-type {
     right: 0;
     border-right: none;
   }
-  
-  /* Chatlog hidden */
   #chatlog {
     display: none;
   }
-  
-  /* Input hidden */
   #chat-input {
     display: none;
   }
-  
   #chatroom::before {
     display: none;
   }
@@ -106,7 +96,6 @@ p:last-of-type {
   -webkit-text-stroke-width: 2px;
 }
 
-/* FORM 1 - ROOM FORM (tampil pertama) */
 #room-form {
   position: fixed;
   z-index: 3;
@@ -135,7 +124,6 @@ p:last-of-type {
   height: 2em;
 }
 
-/* FORM 2 - NAME FORM (tampil setelah room dipilih) */
 #name-form {
   position: fixed;
   z-index: 2;
@@ -185,7 +173,6 @@ p:last-of-type {
 </style>
   </head>
   <body>
-    <!-- FORM 1 - ROOM FORM (tampil pertama) -->
     <form id="room-form" action="/fake-form-action">
       <p>Public Room:</p>
       <input id="room-name" placeholder="room name"><button id="go-public">Go &raquo;</button>
@@ -193,7 +180,6 @@ p:last-of-type {
       <button id="go-private">Private Room &raquo;</button>
     </form>
 
-    <!-- FORM 2 - NAME FORM (tampil setelah room dipilih) -->
     <form id="name-form" action="/fake-form-action">
       <input id="name-input" placeholder="your name">
       <p>This chat runs entirely on the edge<br>
@@ -219,6 +205,7 @@ p:last-of-type {
 
 <script type="text/javascript">
 let currentWebSocket = null;
+let activeRooms = new Map(); // streamId -> room data
 
 let nameForm = document.querySelector("#name-form");
 let nameInput = document.querySelector("#name-input");
@@ -233,9 +220,9 @@ let roster = document.querySelector("#roster");
 
 let isAtBottom = true;
 let username;
-let roomname;
+let currentRoom;
 let deviceId = localStorage.getItem('device_id');
-let pendingParticipants = [];
+let pendingMessages = new Map(); // streamId -> [messages]
 
 if (!deviceId) {
   deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
@@ -267,18 +254,17 @@ async function loadCachedRooms() {
   }
 }
 
-// START dengan ROOM FORM
 function startRoomChooser() {
   if (document.location.hash.length > 1) {
-    roomname = document.location.hash.slice(1);
+    currentRoom = document.location.hash.slice(1);
     startChat();
     return;
   }
 
   roomForm.addEventListener("submit", event => {
     event.preventDefault();
-    roomname = roomNameInput.value;
-    if (roomname.length > 0) {
+    currentRoom = roomNameInput.value;
+    if (currentRoom.length > 0) {
       startChat();
     }
   });
@@ -290,8 +276,8 @@ function startRoomChooser() {
   });
 
   goPublicButton.addEventListener("click", event => {
-    roomname = roomNameInput.value;
-    if (roomname.length > 0) {
+    currentRoom = roomNameInput.value;
+    if (currentRoom.length > 0) {
       startChat();
     }
   });
@@ -308,7 +294,7 @@ function startRoomChooser() {
       return;
     }
 
-    roomname = await response.text();
+    currentRoom = await response.text();
     startChat();
   });
 
@@ -319,14 +305,14 @@ function startChat() {
   roomForm.style.display = "none";
   nameForm.style.display = "block";
 
-  roomname = roomname.replace(/[^a-zA-Z0-9_-]/g, "").replace(/_/g, "-").toLowerCase();
+  currentRoom = currentRoom.replace(/[^a-zA-Z0-9_-]/g, "").replace(/_/g, "-").toLowerCase();
 
-  if (roomname.length > 32 && !roomname.match(/^[0-9a-f]{64}$/)) {
+  if (currentRoom.length > 32 && !currentRoom.match(/^[0-9a-f]{64}$/)) {
     addChatMessage("ERROR", "Invalid room name.");
     return;
   }
 
-  document.location.hash = "#" + roomname;
+  document.location.hash = "#" + currentRoom;
 
   if (window.innerWidth <= 600) {
     roster.style.display = "block";
@@ -349,8 +335,14 @@ function startChat() {
   chatroom.addEventListener("submit", event => {
     event.preventDefault();
 
-    if (currentWebSocket) {
-      currentWebSocket.send(JSON.stringify({message: chatInput.value}));
+    if (currentWebSocket && chatInput.value.trim()) {
+      let streamId = "room:" + currentRoom;
+      currentWebSocket.send(JSON.stringify({
+        type: "message",
+        streamId: streamId,
+        message: chatInput.value,
+        userName: username
+      }));
       chatInput.value = "";
       chatlog.scrollBy(0, 1e8);
     }
@@ -374,7 +366,7 @@ function startChat() {
     });
   }
 
-  join();
+  connectUserWebSocket();
 
   nameForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -382,8 +374,14 @@ function startChat() {
     if (username.length > 0) {
       localStorage.setItem('username', username);
       
+      let streamId = "room:" + currentRoom;
+      
       if (currentWebSocket) {
-        currentWebSocket.send(JSON.stringify({name: username}));
+        currentWebSocket.send(JSON.stringify({
+          type: "subscribe",
+          streamId: streamId,
+          roomId: currentRoom
+        }));
       }
       
       nameForm.style.display = "none";
@@ -397,13 +395,12 @@ function startChat() {
         chatInput.focus();
       }
       
-      // Tampilkan pending participants
-      pendingParticipants.forEach(participant => {
-        let p = document.createElement("p");
-        p.innerText = participant;
-        roster.appendChild(p);
-      });
-      pendingParticipants = [];
+      if (pendingMessages.has(streamId)) {
+        pendingMessages.get(streamId).forEach(msg => {
+          addChatMessage(msg.name, msg.message);
+        });
+        pendingMessages.delete(streamId);
+      }
     }
   });
 
@@ -414,12 +411,9 @@ function startChat() {
   });
 }
 
-let lastSeenTimestamp = 0;
-let wroteWelcomeMessages = false;
-
-function join() {
+function connectUserWebSocket() {
   const wss = document.location.protocol === "http:" ? "ws://" : "wss://";
-  let ws = new WebSocket(wss + hostname + "/api/room/" + roomname + "/websocket");
+  let ws = new WebSocket(wss + hostname + "/api/user/" + deviceId + "/websocket");
   let rejoined = false;
   let startTime = Date.now();
 
@@ -437,12 +431,20 @@ function join() {
         await new Promise(resolve => setTimeout(resolve, 10000 - timeSinceLastJoin));
       }
 
-      join();
+      connectUserWebSocket();
     }
   }
 
   ws.addEventListener("open", event => {
     currentWebSocket = ws;
+    
+    if (username && currentRoom) {
+      ws.send(JSON.stringify({
+        type: "subscribe",
+        streamId: "room:" + currentRoom,
+        roomId: currentRoom
+      }));
+    }
   });
 
   ws.addEventListener("message", event => {
@@ -450,36 +452,23 @@ function join() {
 
     if (data.error) {
       addChatMessage(null, "* Error: " + data.error);
-    } else if (data.joined) {
+    } else if (data.type === "joined") {
       if (username) {
         let p = document.createElement("p");
-        p.innerText = data.joined;
+        p.innerText = data.userId;
         roster.appendChild(p);
-      } else {
-        pendingParticipants.push(data.joined);
       }
-    } else if (data.quit) {
+    } else if (data.type === "quit") {
       for (let child of roster.childNodes) {
-        if (child.innerText == data.quit) {
+        if (child.innerText == data.userId) {
           roster.removeChild(child);
           break;
         }
       }
-    } else if (data.ready) {
-      if (!wroteWelcomeMessages) {
-        wroteWelcomeMessages = true;
-        addChatMessage(null, "* This is a demo app built with Cloudflare Workers Durable Objects.");
-        addChatMessage(null, "* WARNING: Participants are random people on the internet. Names are not authenticated.");
-        if (roomname.length == 64) {
-          addChatMessage(null, "* This is a private room. Share the URL to invite others.");
-        } else {
-          addChatMessage(null, "* Welcome to #" + roomname + ". Say hi!");
-        }
-      }
-    } else {
-      if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message);
-        lastSeenTimestamp = data.timestamp;
+    } else if (data.type === "message") {
+      if (data.data && data.data.timestamp > lastSeenTimestamp) {
+        addChatMessage(data.data.name, data.data.message);
+        lastSeenTimestamp = data.data.timestamp;
       }
     }
   });
@@ -493,6 +482,9 @@ function join() {
     rejoin();
   });
 }
+
+let lastSeenTimestamp = 0;
+let wroteWelcomeMessages = false;
 
 function addChatMessage(name, text) {
   let p = document.createElement("p");
