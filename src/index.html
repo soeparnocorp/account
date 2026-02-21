@@ -54,22 +54,25 @@ p:last-of-type {
 
 /* ===== SMARTPHONE STYLES ===== */
 @media(max-width:600px) {
-  /* ROSTER default TAMPIL */
+  /* Roster full screen */
   #roster {
     display: block;
+    width: 100%;           /* full width */
+    left: 0;
+    right: 0;
+    border-right: none;    /* hapus border */
   }
   
-  /* CHATLOG default HIDDEN */
+  /* Chatlog hidden */
   #chatlog {
     display: none;
   }
   
-  /* INPUT TEXT HIDDEN saat roster tampil */
+  /* Input hidden */
   #chat-input {
     display: none;
   }
   
-  /* Tanda ">" juga hidden */
   #chatroom::before {
     display: none;
   }
