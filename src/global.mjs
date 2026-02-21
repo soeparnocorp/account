@@ -52,7 +52,7 @@ async function handleApiRequest(path, request, env) {
       }
       
       // Panggil OpenAuth untuk dapetin email
-      const tokenRes = await fetch(`https://openauth.workers.dev/token`, {
+      const tokenRes = await fetch(`https://openauth.soeparnocorp.workers.dev/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
