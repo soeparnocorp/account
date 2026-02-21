@@ -1,4 +1,3 @@
-// This is the Edge Chat Demo Worker, built using Durable Objects!
 import HTML from "./index.html";
 
 async function handleErrors(request, func) {
