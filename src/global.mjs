@@ -1,4 +1,4 @@
-// global.mjs //
+// This is the Edge Chat Demo Worker, built using Durable Objects!
 import HTML from "./index.html";
 
 async function handleErrors(request, func) {
@@ -38,7 +38,7 @@ export default {
 }
 
 async function handleApiRequest(path, request, env) {
-  // D1 ENDPOINTS
+  // ===== D1 ENDPOINTS =====
   if (path[0] === "rooms" && request.method === "GET") {
     try {
       const { results } = await env.READTALK_DB.prepare(
@@ -69,7 +69,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // KV ENDPOINTS
+  // ===== KV ENDPOINTS =====
   if (path[0] === "cache" && request.method === "GET") {
     try {
       const cached = await env.READTALK_KV.get("public_rooms");
@@ -96,7 +96,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // R2 ENDPOINTS
+  // ===== R2 ENDPOINTS =====
   if (path[0] === "upload" && request.method === "POST") {
     try {
       const formData = await request.formData();
@@ -133,7 +133,26 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // ROOM ENDPOINTS
+  // ===== USER WEBSOCKET ENDPOINT (SATU PIPA BANYAK KERAN) =====
+  if (path[0] === "user" && path[2] === "websocket") {
+    // /api/user/:userId/websocket
+    let userId = path[1];
+    
+    // Buat koneksi WebSocket untuk user ini
+    if (request.headers.get("Upgrade") != "websocket") {
+      return new Response("expected websocket", {status: 400});
+    }
+    
+    let pair = new WebSocketPair();
+    let ip = request.headers.get("CF-Connecting-IP");
+    
+    // Handle session untuk user ini (bisa multiple streams)
+    await handleUserWebSocket(pair[1], userId, ip, env);
+    
+    return new Response(null, { status: 101, webSocket: pair[0] });
+  }
+
+  // ===== ORIGINAL ROOM ENDPOINTS (TETAP ADA UNTUK KOMPATIBILITAS) =====
   switch (path[0]) {
     case "room": {
       if (!path[1]) {
@@ -144,9 +163,7 @@ async function handleApiRequest(path, request, env) {
             await env.READTALK_DB.prepare(
               "INSERT INTO rooms (name, is_private) VALUES (?, ?)"
             ).bind(id.toString(), 1).run();
-          } catch (e) {
-            // Abaikan error
-          }
+          } catch (e) {}
           
           return new Response(id.toString(), {headers: {"Access-Control-Allow-Origin": "*"}});
         } else {
@@ -165,9 +182,7 @@ async function handleApiRequest(path, request, env) {
           await env.READTALK_DB.prepare(
             "INSERT OR IGNORE INTO rooms (name, is_private) VALUES (?, ?)"
           ).bind(name, 0).run();
-        } catch (e) {
-          // Abaikan error
-        }
+        } catch (e) {}
         
       } else {
         return new Response("Name too long", {status: 404});
@@ -184,14 +199,108 @@ async function handleApiRequest(path, request, env) {
   }
 }
 
+// ===== HANDLER UNTUK USER WEBSOCKET (SATU PIPA BANYAK KERAN) =====
+async function handleUserWebSocket(webSocket, userId, ip, env) {
+  webSocket.accept();
+  
+  // Map untuk menyimpan subscription ke berbagai room
+  let subscriptions = new Map(); // streamId -> { roomId, roomStub }
+  
+  webSocket.addEventListener("message", async (event) => {
+    try {
+      let msg = JSON.parse(event.data);
+      
+      // Format pesan: { streamId, type, roomId, message, etc }
+      
+      if (msg.type === "subscribe") {
+        // Subscribe ke room tertentu
+        let roomId = msg.roomId;
+        let streamId = msg.streamId || `room:${roomId}`;
+        
+        // Dapatkan stub Durable Object untuk room
+        let id;
+        if (roomId.match(/^[0-9a-f]{64}$/)) {
+          id = env.rooms.idFromString(roomId);
+        } else {
+          id = env.rooms.idFromName(roomId);
+        }
+        let roomStub = env.rooms.get(id);
+        
+        // Simpan subscription
+        subscriptions.set(streamId, { roomId, roomStub });
+        
+        // Forward ke room object (untuk join)
+        await roomStub.fetch("https://dummy/join", {
+          method: "POST",
+          body: JSON.stringify({
+            userId,
+            streamId,
+            ip
+          })
+        });
+        
+      } else if (msg.type === "unsubscribe") {
+        // Unsubscribe dari room
+        let streamId = msg.streamId;
+        let sub = subscriptions.get(streamId);
+        
+        if (sub) {
+          await sub.roomStub.fetch("https://dummy/leave", {
+            method: "POST",
+            body: JSON.stringify({
+              userId,
+              streamId
+            })
+          });
+          subscriptions.delete(streamId);
+        }
+        
+      } else if (msg.type === "message") {
+        // Kirim pesan ke room tertentu
+        let streamId = msg.streamId;
+        let sub = subscriptions.get(streamId);
+        
+        if (sub) {
+          await sub.roomStub.fetch("https://dummy/message", {
+            method: "POST",
+            body: JSON.stringify({
+              userId,
+              userName: msg.userName || userId,
+              message: msg.message,
+              timestamp: Date.now()
+            })
+          });
+        }
+      }
+    } catch (err) {
+      webSocket.send(JSON.stringify({ error: err.stack, streamId: msg?.streamId }));
+    }
+  });
+  
+  webSocket.addEventListener("close", () => {
+    // Bersihkan semua subscription
+    subscriptions.forEach(async (sub, streamId) => {
+      try {
+        await sub.roomStub.fetch("https://dummy/leave", {
+          method: "POST",
+          body: JSON.stringify({ userId, streamId })
+        });
+      } catch (e) {}
+    });
+  });
+}
+
+// ===== DURABLE OBJECT CHATROOM YANG SUDAH DIMODIFIKASI =====
 export class ChatRoom {
   constructor(state, env) {
     this.state = state;
     this.storage = state.storage;
     this.env = env;
-    this.sessions = new Map();
+    this.sessions = new Map();        // webSocket -> session (untuk koneksi lama)
+    this.userStreams = new Map();      // streamId -> { userId, webSocket? } (untuk koneksi baru)
     this.lastTimestamp = 0;
 
+    // Load existing WebSockets (untuk kompatibilitas backward)
     this.state.getWebSockets().forEach((webSocket) => {
       let meta = webSocket.deserializeAttachment();
       let limiterId = this.env.limiters.idFromString(meta.limiterId);
@@ -207,24 +316,98 @@ export class ChatRoom {
     return await handleErrors(request, async () => {
       let url = new URL(request.url);
 
-      switch (url.pathname) {
-        case "/websocket": {
-          if (request.headers.get("Upgrade") != "websocket") {
-            return new Response("expected websocket", {status: 400});
-          }
-
-          let ip = request.headers.get("CF-Connecting-IP");
-          let pair = new WebSocketPair();
-          await this.handleSession(pair[1], ip);
-          return new Response(null, { status: 101, webSocket: pair[0] });
-        }
-
-        default:
-          return new Response("Not found", {status: 404});
+      // Handler untuk koneksi WebSocket lama (per room)
+      if (url.pathname === "/websocket" && request.headers.get("Upgrade") == "websocket") {
+        let ip = request.headers.get("CF-Connecting-IP");
+        let pair = new WebSocketPair();
+        await this.handleSession(pair[1], ip);
+        return new Response(null, { status: 101, webSocket: pair[0] });
       }
+      
+      // Handler untuk method POST dari user WebSocket
+      if (request.method === "POST") {
+        let body = await request.json();
+        
+        if (url.pathname === "/join") {
+          // User subscribe ke room ini
+          let { userId, streamId, ip } = body;
+          
+          // Catat user ini di room
+          this.userStreams.set(streamId, { userId, ip, lastSeen: Date.now() });
+          
+          // Broadcast ke semua user di room ini bahwa user joined
+          this.broadcastToStreams({
+            type: "joined",
+            streamId,
+            userId,
+            userName: userId
+          });
+          
+          return new Response(JSON.stringify({ success: true }));
+          
+        } else if (url.pathname === "/leave") {
+          // User unsubscribe dari room ini
+          let { userId, streamId } = body;
+          
+          this.userStreams.delete(streamId);
+          
+          // Broadcast ke semua user di room ini bahwa user left
+          this.broadcastToStreams({
+            type: "quit",
+            streamId,
+            userId
+          });
+          
+          return new Response(JSON.stringify({ success: true }));
+          
+        } else if (url.pathname === "/message") {
+          // User kirim pesan ke room ini
+          let { userId, userName, message, timestamp } = body;
+          
+          let data = {
+            name: userName || userId,
+            message: message,
+            timestamp: Math.max(timestamp || Date.now(), this.lastTimestamp + 1)
+          };
+          this.lastTimestamp = data.timestamp;
+          
+          let dataStr = JSON.stringify(data);
+          
+          // Broadcast ke semua user di room ini
+          this.broadcastToStreams({
+            type: "message",
+            data: data
+          });
+          
+          // Simpan ke storage
+          let key = new Date(data.timestamp).toISOString();
+          await this.storage.put(key, dataStr);
+          
+          // Simpan ke D1 (opsional)
+          try {
+            let roomId = this.state.id.toString();
+            await this.env.READTALK_DB.prepare(
+              "INSERT INTO messages (room_id, user, message, timestamp) VALUES (?, ?, ?, ?)"
+            ).bind(roomId, data.name, data.message, data.timestamp).run();
+          } catch (e) {}
+          
+          return new Response(JSON.stringify({ success: true }));
+        }
+      }
+
+      return new Response("Not found", {status: 404});
     });
   }
 
+  // Broadcast ke semua stream yang subscribe ke room ini
+  broadcastToStreams(message) {
+    // Untuk sekarang, karena kita belum punya koneksi WebSocket langsung ke user,
+    // kita perlu cara lain untuk mengirim pesan ke user.
+    // Ini akan diimplementasikan lebih lanjut.
+    console.log("Broadcast to streams:", message);
+  }
+
+  // ===== METHOD LAMA UNTUK KOMPATIBILITAS =====
   async handleSession(webSocket, ip) {
     this.state.acceptWebSocket(webSocket);
 
@@ -309,9 +492,7 @@ export class ChatRoom {
         await this.env.READTALK_DB.prepare(
           "INSERT INTO messages (room_id, user, message, timestamp) VALUES (?, ?, ?, ?)"
         ).bind(roomId, data.name, data.message, data.timestamp).run();
-      } catch (e) {
-        // Abaikan error
-      }
+      } catch (e) {}
       
     } catch (err) {
       webSocket.send(JSON.stringify({error: err.stack}));
@@ -329,9 +510,7 @@ export class ChatRoom {
         let roomId = this.state.id.toString();
         let count = await this.env.READTALK_KV.get(`online:${roomId}`) || 0;
         await this.env.READTALK_KV.put(`online:${roomId}`, (parseInt(count) - 1).toString());
-      } catch (e) {
-        // Abaikan error
-      }
+      } catch (e) {}
     }
   }
 
@@ -413,21 +592,6 @@ class RateLimiterClient {
       let response;
       try {
         response = await this.limiter.fetch("https://dummy-url", {method: "POST"});
-      } catch (err) {
-        this.limiter = this.getLimiterStub();
-        response = await this.limiter.fetch("https://dummy-url", {method: "POST"});
-      }
-
-      let cooldown = +(await response.text());
-      await new Promise(resolve => setTimeout(resolve, cooldown * 1000));
-
-      this.inCooldown = false;
-    } catch (err) {
-      this.reportError(err);
-    }
-  }
-}
-```});
       } catch (err) {
         this.limiter = this.getLimiterStub();
         response = await this.limiter.fetch("https://dummy-url", {method: "POST"});
