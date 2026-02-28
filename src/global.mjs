@@ -7,11 +7,11 @@ async function handleErrors(request, func) {
     if (request.headers.get("Upgrade") == "websocket") {
       let pair = new WebSocketPair();
       pair[1].accept();
-      pair[1].send(JSON.stringify({error: err.stack}));
+      pair[1].send(JSON.stringify({ error: err.stack }));
       pair[1].close(1011, "Uncaught exception during session setup");
       return new Response(null, { status: 101, webSocket: pair[0] });
     } else {
-      return new Response(err.stack, {status: 500});
+      return new Response(err.stack, { status: 500 });
     }
   }
 }
@@ -20,24 +20,26 @@ export default {
   async fetch(request, env) {
     return await handleErrors(request, async () => {
       let url = new URL(request.url);
-      let path = url.pathname.slice(1).split('/');
+      let path = url.pathname.slice(1).split("/");
 
       if (!path[0]) {
-        return new Response(HTML, {headers: {"Content-Type": "text/html;charset=UTF-8"}});
+        return new Response(HTML, {
+          headers: { "Content-Type": "text/html;charset=UTF-8" },
+        });
       }
 
       switch (path[0]) {
         case "api":
           return handleApiRequest(path.slice(1), request, env);
         default:
-          return new Response("Not found", {status: 404});
+          return new Response("Not found", { status: 404 });
       }
     });
-  }
-}
+  },
+};
 
 async function handleApiRequest(path, request, env) {
-  // ===== D1 ENDPOINTS =====
+  // ===== D1 ENDPOINTS (dari File 1/2) =====
   if (path[0] === "rooms" && request.method === "GET") {
     try {
       const { results } = await env.READTALK_DB.prepare(
@@ -68,7 +70,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // ===== KV ENDPOINTS =====
+  // ===== KV ENDPOINTS (dari File 1/2) =====
   if (path[0] === "cache" && request.method === "GET") {
     try {
       const cached = await env.READTALK_KV.get("public_rooms");
@@ -95,7 +97,7 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // ===== R2 ENDPOINTS =====
+  // ===== R2 ENDPOINTS (dari File 1/2) =====
   if (path[0] === "upload" && request.method === "POST") {
     try {
       const formData = await request.formData();
@@ -132,14 +134,206 @@ async function handleApiRequest(path, request, env) {
     }
   }
 
-  // ===== ORIGINAL ROOM ENDPOINTS =====
+  // ===== USER API ENDPOINT (dari File 3) =====
+  if (path[0] === "user") {
+    const code = path[1]; // /api/user/:code
+    const url = new URL(request.url);
+    const email = url.searchParams.get("email"); // Email dari OpenAuth
+    
+    // GET /api/user/:code?email=xxx - Ambil data user
+    if (request.method === "GET") {
+      if (!code) {
+        return new Response("Code required", { status: 400 });
+      }
+      
+      try {
+        // STRATEGI: Cek berdasarkan EMAIL dulu (primary key)
+        let identitas = null;
+        let userData = null;
+        
+        // 1. Cek berdasarkan email (kalau ada)
+        if (email) {
+          identitas = await env.READTALK_KV.get(`email:${email}`);
+        }
+        
+        // 2. Kalau tidak ada email atau tidak ketemu, cek berdasarkan code
+        if (!identitas) {
+          identitas = await env.READTALK_KV.get(`code:${code}`);
+        }
+        
+        if (!identitas) {
+          return new Response(JSON.stringify({ exists: false }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Ambil data lengkap user
+        userData = await env.READTALK_KV.get(`user:${identitas}`);
+        
+        if (!userData) {
+          return new Response(JSON.stringify({ exists: false }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Update mapping code ke identitas (untuk code baru)
+        await env.READTALK_KV.put(`code:${code}`, identitas, {
+          expirationTtl: 60 * 60 * 24 * 90, // 90 hari
+        });
+        
+        return new Response(userData, {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { 
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    
+    // POST /api/user/:code?email=xxx - Simpan data user baru
+    if (request.method === "POST") {
+      if (!code) {
+        return new Response("Code required", { status: 400 });
+      }
+      
+      if (!email) {
+        return new Response("Email required", { status: 400 });
+      }
+      
+      try {
+        const data = await request.json();
+        const { identitas, name, avatar, about } = data;
+        
+        // Validasi input
+        if (!identitas || !name) {
+          return new Response(JSON.stringify({ error: "Identitas dan nama required" }), { 
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Cek apakah email sudah terdaftar
+        const existingIdentitas = await env.READTALK_KV.get(`email:${email}`);
+        if (existingIdentitas) {
+          return new Response(JSON.stringify({ error: "Email sudah terdaftar" }), { 
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Cek apakah identitas sudah dipakai
+        const existingCode = await env.READTALK_KV.get(`identitas:${identitas}`);
+        if (existingCode) {
+          return new Response(JSON.stringify({ error: "Identitas sudah digunakan" }), { 
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Simpan mapping email -> identitas (PRIMARY)
+        await env.READTALK_KV.put(`email:${email}`, identitas, {
+          expirationTtl: 60 * 60 * 24 * 365, // 1 tahun
+        });
+        
+        // Simpan mapping code -> identitas (sementara)
+        await env.READTALK_KV.put(`code:${code}`, identitas, {
+          expirationTtl: 60 * 60 * 24 * 90, // 90 hari
+        });
+        
+        // Simpan mapping identitas -> code
+        await env.READTALK_KV.put(`identitas:${identitas}`, code, {
+          expirationTtl: 60 * 60 * 24 * 90,
+        });
+        
+        // Simpan data user lengkap
+        const userData = JSON.stringify({
+          identitas,
+          name,
+          avatar: avatar || "",
+          about: about || "",
+          email,
+          createdAt: Date.now(),
+        });
+        
+        await env.READTALK_KV.put(`user:${identitas}`, userData, {
+          expirationTtl: 60 * 60 * 24 * 365, // 1 tahun
+        });
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { 
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    
+    // PUT /api/user/:code?email=xxx - Update data user
+    if (request.method === "PUT") {
+      if (!code) {
+        return new Response("Code required", { status: 400 });
+      }
+      
+      try {
+        const data = await request.json();
+        const { name, avatar, about } = data;
+        
+        // Ambil identitas dari mapping code
+        let identitas = await env.READTALK_KV.get(`code:${code}`);
+        
+        // Kalau tidak ada, coba cek via email
+        if (!identitas && email) {
+          identitas = await env.READTALK_KV.get(`email:${email}`);
+        }
+        
+        if (!identitas) {
+          return new Response(JSON.stringify({ error: "User not found" }), { 
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        
+        // Ambil data existing
+        const existingData = await env.READTALK_KV.get(`user:${identitas}`);
+        const userData = existingData ? JSON.parse(existingData) : {};
+        
+        // Update data
+        if (name) userData.name = name;
+        if (avatar !== undefined) userData.avatar = avatar;
+        if (about !== undefined) userData.about = about;
+        userData.updatedAt = Date.now();
+        
+        // Simpan kembali
+        await env.READTALK_KV.put(`user:${identitas}`, JSON.stringify(userData), {
+          expirationTtl: 60 * 60 * 24 * 365, // 1 tahun
+        });
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { 
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  // ===== ORIGINAL ROOM ENDPOINTS (gabungan dari File 1/2 dan File 3) =====
   switch (path[0]) {
     case "room": {
       if (!path[1]) {
         if (request.method == "POST") {
           let id = env.rooms.newUniqueId();
           
-          // Simpan ke D1 untuk tracking
+          // Simpan ke D1 untuk tracking (dari File 1/2)
           try {
             await env.READTALK_DB.prepare(
               "INSERT INTO rooms (name, is_private) VALUES (?, ?)"
@@ -148,9 +342,11 @@ async function handleApiRequest(path, request, env) {
             // Abaikan error, tetap return ID
           }
           
-          return new Response(id.toString(), {headers: {"Access-Control-Allow-Origin": "*"}});
+          return new Response(id.toString(), {
+            headers: { "Access-Control-Allow-Origin": "*" },
+          });
         } else {
-          return new Response("Method not allowed", {status: 405});
+          return new Response("Method not allowed", { status: 405 });
         }
       }
 
@@ -161,7 +357,7 @@ async function handleApiRequest(path, request, env) {
       } else if (name.length <= 32) {
         id = env.rooms.idFromName(name);
         
-        // Simpan public room ke D1
+        // Simpan public room ke D1 (dari File 1/2)
         try {
           await env.READTALK_DB.prepare(
             "INSERT OR IGNORE INTO rooms (name, is_private) VALUES (?, ?)"
@@ -171,7 +367,7 @@ async function handleApiRequest(path, request, env) {
         }
         
       } else {
-        return new Response("Name too long", {status: 404});
+        return new Response("Name too long", { status: 404 });
       }
 
       let roomObject = env.rooms.get(id);
@@ -181,7 +377,7 @@ async function handleApiRequest(path, request, env) {
     }
 
     default:
-      return new Response("Not found", {status: 404});
+      return new Response("Not found", { status: 404 });
   }
 }
 
@@ -198,7 +394,8 @@ export class ChatRoom {
       let limiterId = this.env.limiters.idFromString(meta.limiterId);
       let limiter = new RateLimiterClient(
         () => this.env.limiters.get(limiterId),
-        err => webSocket.close(1011, err.stack));
+        (err) => webSocket.close(1011, err.stack)
+      );
       let blockedMessages = [];
       this.sessions.set(webSocket, { ...meta, limiter, blockedMessages });
     });
@@ -211,8 +408,19 @@ export class ChatRoom {
       switch (url.pathname) {
         case "/websocket": {
           if (request.headers.get("Upgrade") != "websocket") {
-            return new Response("expected websocket", {status: 400});
+            return new Response("expected websocket", { status: 400 });
           }
+
+          // ===== AWARE ?code= dan ?email ===== (dari File 3)
+          const code = url.searchParams.get("code");
+          const email = url.searchParams.get("email");
+          if (code) {
+            console.log("OAuth code detected:", code);
+          }
+          if (email) {
+            console.log("Email detected:", email);
+          }
+          // ===== END =====
 
           let ip = request.headers.get("CF-Connecting-IP");
           let pair = new WebSocketPair();
@@ -221,7 +429,7 @@ export class ChatRoom {
         }
 
         default:
-          return new Response("Not found", {status: 404});
+          return new Response("Not found", { status: 404 });
       }
     });
   }
@@ -231,23 +439,29 @@ export class ChatRoom {
 
     let limiterId = this.env.limiters.idFromName(ip);
     let limiter = new RateLimiterClient(
-        () => this.env.limiters.get(limiterId),
-        err => webSocket.close(1011, err.stack));
+      () => this.env.limiters.get(limiterId),
+      (err) => webSocket.close(1011, err.stack)
+    );
 
     let session = { limiterId, limiter, blockedMessages: [] };
-    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString() });
+    webSocket.serializeAttachment({ 
+      ...webSocket.deserializeAttachment(), 
+      limiterId: limiterId.toString() 
+    });
     this.sessions.set(webSocket, session);
 
     for (let otherSession of this.sessions.values()) {
       if (otherSession.name) {
-        session.blockedMessages.push(JSON.stringify({joined: otherSession.name}));
+        session.blockedMessages.push(
+          JSON.stringify({ joined: otherSession.name })
+        );
       }
     }
 
-    let storage = await this.storage.list({reverse: true, limit: 100});
+    let storage = await this.storage.list({ reverse: true, limit: 100 });
     let backlog = [...storage.values()];
     backlog.reverse();
-    backlog.forEach(value => {
+    backlog.forEach((value) => {
       session.blockedMessages.push(value);
     });
   }
@@ -261,9 +475,11 @@ export class ChatRoom {
       }
 
       if (!session.limiter.checkLimit()) {
-        webSocket.send(JSON.stringify({
-          error: "Your IP is being rate-limited, please try again later."
-        }));
+        webSocket.send(
+          JSON.stringify({
+            error: "Your IP is being rate-limited, please try again later.",
+          })
+        );
         return;
       }
 
@@ -271,28 +487,38 @@ export class ChatRoom {
 
       if (!session.name) {
         session.name = "" + (data.name || "anonymous");
-        webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), name: session.name });
+        // Tambahan dari File 3: identitas dan email
+        if (data.identitas) session.identitas = data.identitas;
+        if (data.email) session.email = data.email;
+        
+        webSocket.serializeAttachment({
+          ...webSocket.deserializeAttachment(),
+          name: session.name,
+          identitas: session.identitas,
+          email: session.email,
+        });
 
         if (session.name.length > 32) {
-          webSocket.send(JSON.stringify({error: "Name too long."}));
+          webSocket.send(JSON.stringify({ error: "Name too long." }));
           webSocket.close(1009, "Name too long.");
           return;
         }
 
-        session.blockedMessages.forEach(queued => {
+        session.blockedMessages.forEach((queued) => {
           webSocket.send(queued);
         });
         delete session.blockedMessages;
 
-        this.broadcast({joined: session.name});
-        webSocket.send(JSON.stringify({ready: true}));
+        // Broadcast dengan identitas (dari File 3)
+        this.broadcast({ joined: session.name, identitas: session.identitas });
+        webSocket.send(JSON.stringify({ ready: true }));
         return;
       }
 
       data = { name: session.name, message: "" + data.message };
 
       if (data.message.length > 256) {
-        webSocket.send(JSON.stringify({error: "Message too long."}));
+        webSocket.send(JSON.stringify({ error: "Message too long." }));
         return;
       }
 
@@ -305,7 +531,7 @@ export class ChatRoom {
       let key = new Date(data.timestamp).toISOString();
       await this.storage.put(key, dataStr);
       
-      // Simpan ke D1 untuk history panjang (opsional)
+      // ===== TAMBAHAN DARI FILE 1/2: Simpan ke D1 untuk history panjang =====
       try {
         let roomId = this.state.id.toString();
         await this.env.READTALK_DB.prepare(
@@ -314,9 +540,10 @@ export class ChatRoom {
       } catch (e) {
         // Abaikan error, tetap lanjut
       }
+      // ===== END =====
       
     } catch (err) {
-      webSocket.send(JSON.stringify({error: err.stack}));
+      webSocket.send(JSON.stringify({ error: err.stack }));
     }
   }
 
@@ -325,9 +552,10 @@ export class ChatRoom {
     session.quit = true;
     this.sessions.delete(webSocket);
     if (session.name) {
-      this.broadcast({quit: session.name});
+      // Broadcast dengan identitas (dari File 3)
+      this.broadcast({ quit: session.name, identitas: session.identitas });
       
-      // Update status online di KV
+      // ===== TAMBAHAN DARI FILE 1/2: Update status online di KV =====
       try {
         let roomId = this.state.id.toString();
         let count = await this.env.READTALK_KV.get(`online:${roomId}`) || 0;
@@ -335,15 +563,16 @@ export class ChatRoom {
       } catch (e) {
         // Abaikan error
       }
+      // ===== END =====
     }
   }
 
   async webSocketClose(webSocket, code, reason, wasClean) {
-    this.closeOrErrorHandler(webSocket)
+    this.closeOrErrorHandler(webSocket);
   }
 
   async webSocketError(webSocket, error) {
-    this.closeOrErrorHandler(webSocket)
+    this.closeOrErrorHandler(webSocket);
   }
 
   broadcast(message) {
@@ -366,9 +595,10 @@ export class ChatRoom {
       }
     });
 
-    quitters.forEach(quitter => {
+    quitters.forEach((quitter) => {
       if (quitter.name) {
-        this.broadcast({quit: quitter.name});
+        // Broadcast dengan identitas (dari File 3)
+        this.broadcast({ quit: quitter.name, identitas: quitter.identitas });
       }
     });
   }
@@ -390,7 +620,7 @@ export class RateLimiter {
 
       let cooldown = Math.max(0, this.nextAllowedTime - now - 20);
       return new Response(cooldown);
-    })
+    });
   }
 }
 
@@ -403,9 +633,7 @@ class RateLimiterClient {
   }
 
   checkLimit() {
-    if (this.inCooldown) {
-      return false;
-    }
+    if (this.inCooldown) return false;
     this.inCooldown = true;
     this.callLimiter();
     return true;
@@ -415,15 +643,20 @@ class RateLimiterClient {
     try {
       let response;
       try {
-        response = await this.limiter.fetch("https://dummy-url", {method: "POST"});
+        response = await this.limiter.fetch("https://dummy-url", {
+          method: "POST",
+        });
       } catch (err) {
         this.limiter = this.getLimiterStub();
-        response = await this.limiter.fetch("https://dummy-url", {method: "POST"});
+        response = await this.limiter.fetch("https://dummy-url", {
+          method: "POST",
+        });
       }
 
       let cooldown = +(await response.text());
-      await new Promise(resolve => setTimeout(resolve, cooldown * 1000));
-
+      await new Promise((resolve) =>
+        setTimeout(resolve, cooldown * 1000)
+      );
       this.inCooldown = false;
     } catch (err) {
       this.reportError(err);
