@@ -638,15 +638,39 @@
   </div>
 
   <script>
-    // ========== SISTEM KEAMANAN PARAMETER ==========
+    //===== System Parameter =====
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId');
+    const email = params.get('email');
+    const username = params.get('username') || 'Guest';
+    
+    if (!userId || !email) {
+      document.body.innerHTML = `<div>Missing login...</div>`;
+      throw new Error('Access denied');
+    }
+    
+    // Simpan di localStorage
+    localStorage.setItem('userId', userId);
+    localStorage.setItem('email', email);
+    localStorage.setItem('username', username);
+    
+    // Kirim ke API account worker (global.mjs)
+    fetch('/api/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, email, username })
+    }).catch(err => console.error('Failed to save user:', err));
+  })();   
+    
     (function() {
       const params = new URLSearchParams(window.location.search);
       const userId = params.get('userId');
       const email = params.get('email');
       
-      // CEK PARAMETER - WAJIB ADA!
+      // CHECK PARAMETER
       if (!userId || !email) {
-        // BLOK AKSES - TANPA PARAMETER
+        // BLOK PARAMETER
         document.body.innerHTML = `
           <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: system-ui; padding: 20px; text-align: center;">
             <h2 style="color: #ff0000; margin-bottom: 20px;">⛔ Access Denied</h2>
