@@ -1035,6 +1035,26 @@ window.addEventListener('message', (event) => {
 window.addEventListener('message', (event) => {
   if (event.origin !== 'https://id-readtalk.pages.dev') return;
   
+  const data = event.data;
+  
+  if (data.type === 'OPEN_ROOM') {
+    const roomName = data.roomName;
+    if (roomName) {
+      document.getElementById('room-name').value = roomName;
+      document.getElementById('go-public').click();
+      
+      // Konfirmasi balik
+      event.source.postMessage({
+        type: 'ROOM_OPENED',
+        roomName: roomName
+      }, event.origin);
+    }
+  }
+});
+    
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://id-readtalk.pages.dev') return;
+  
   if (event.data.type === 'OPEN_ROOM') {
     document.getElementById('room-name').value = event.data.roomName;
     document.getElementById('go-public').click();
