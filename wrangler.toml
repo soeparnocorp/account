@@ -8,9 +8,9 @@ GIT_REPO_KEY = "soeparnocorp/index"
 
 # ============ BINDINGS ============
 # KV Namespace binding
-kv_namespaces = [
-  { binding = "READTALK_KV", id = "13a468e30cc84fe58ff6297d799050f2" }
-]
+[[kv_namespaces]] 
+binding = "READTALK_KV"
+id = "13a468e30cc84fe58ff6297d799050f2"
 
 # D1 Database binding
 [[d1_databases]]
