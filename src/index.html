@@ -5,7 +5,7 @@
   <title>READTalk</title>
   <meta name="theme-color" content="#ff0000">
   <style>
-    /* CSS LENGKAP (sama persis seperti di atas) - TIDAK BERUBAH */
+    /* CSS */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -1031,6 +1031,33 @@ window.addEventListener('message', (event) => {
     }
 
     // ========== EVENT LISTENERS ==========
+    
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://id-readtalk.pages.dev') return;
+  
+  if (event.data.type === 'PROFILE_READY') {
+    // Kasih tahu profile bahwa kita siap
+    event.source.postMessage({
+      type: 'READY_FOR_ROOM'
+    }, event.origin);
+    
+    // Isi form yourname
+    if (document.getElementById('name-input')) {
+      document.getElementById('name-input').value = event.data.username;
+    }
+  }
+  
+  if (event.data.type === 'CREATE_USER_ROOM') {
+    const roomName = `user${event.data.userId}`;
+    document.getElementById('room-name').value = roomName;
+    document.getElementById('go-public').click();
+    
+    event.source.postMessage({
+      type: 'USER_ROOM_CREATED',
+      userId: event.data.userId
+    }, event.origin);
+  }
+});
 
     window.addEventListener('message', (event) => {
   if (event.origin !== 'https://id-readtalk.pages.dev') return;
