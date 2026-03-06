@@ -644,13 +644,7 @@
     const userId = params.get('userId');
     const email = params.get('email');
     const username = params.get('username') || 'Guest';
-
-    // Auto System Parameter
-setTimeout(() => {
-  document.getElementById('room-name').value = `user:${userId}`;
-  document.getElementById('go-public').click();
-}, 100);
-    
+       
     if (!userId || !email) {
       document.body.innerHTML = `<div>Missing login...</div>`;
       throw new Error('Access denied');
